@@ -44,12 +44,51 @@ export function saveLocal() {
 }
 
 /* ── companies ─────────────────────────────────────────────────────────── */
+/**
+ * The worked example gets a FIXED id. Every device that seeds it produces the
+ * same document, so signing in on a second device merges the two instead of
+ * stacking up another "Cascade Septic & Drain" in the rail.
+ */
+export const SEED_ID = 'seed-cascade';
+
 export function newCompany(name = 'Untitled target', extra = {}) {
-  const id = uid();
-  const c = { id, name, d: {}, i: { ...DEF }, created: Date.now(), updated: Date.now(), ...extra };
+  const { id: fixedId, ...rest } = extra;
+  const id = fixedId || uid();
+  const c = { id, name, d: {}, i: { ...DEF }, created: Date.now(), updated: Date.now(), ...rest };
   state.companies[id] = c; state.active = id;
   saveLocal(); queuePush([id]);
   return c;
+}
+
+/**
+ * Collapse companies whose content is byte-identical — same name, same scores,
+ * same assumptions. These only ever arise from the old non-deterministic seed
+ * being created independently on each device; keeping the newest loses nothing
+ * because the others say exactly the same thing.
+ */
+export function dedupeIdentical() {
+  const groups = new Map();
+  Object.values(state.companies).forEach((c) => {
+    if (!c || !c.id) return;
+    const k = JSON.stringify([c.name, c.d, c.i]);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(c);
+  });
+  let removed = 0;
+  groups.forEach((list) => {
+    if (list.length < 2) return;
+    list.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    const keep = list.find((c) => c.id === SEED_ID) || list[0];
+    list.forEach((c) => {
+      if (c.id === keep.id) return;
+      delete state.companies[c.id];
+      if (cloud) { try { cloud.del('companies', c.id); } catch (e) { /* retried by cache */ } }
+      knownRemote.delete(c.id);
+      if (state.active === c.id) state.active = keep.id;
+      removed++;
+    });
+  });
+  return removed;
 }
 export function activeCompany() { return state.companies[state.active] || null; }
 export function ensureCompany(seed) {
@@ -57,7 +96,7 @@ export function ensureCompany(seed) {
     if (!state.companies[state.active]) state.active = Object.keys(state.companies)[0];
     return activeCompany();
   }
-  return newCompany('Cascade Septic & Drain', seed ? { d: { ...seed } } : {});
+  return newCompany('Cascade Septic & Drain', seed ? { id: SEED_ID, d: { ...seed } } : { id: SEED_ID });
 }
 export function touchCompany(id = state.active) {
   const c = state.companies[id];
@@ -143,6 +182,7 @@ export async function connectCloud(user) {
     }
     if (srsDoc && srsDoc.cards && !Object.keys(state.srs).length) state.srs = srsDoc.cards;
     ensureCompany();
+    dedupeIdentical();
     saveLocal();
     state.sync = 'cloud'; emit();
     queuePush(push);
@@ -164,7 +204,7 @@ export async function connectCloud(user) {
           }
         });
       }
-      ensureCompany(); saveLocal(); emit();
+      ensureCompany(); dedupeIdentical(); saveLocal(); emit();
     }, () => {});
   } catch (e) {
     console.warn('cloud sync unavailable', e);

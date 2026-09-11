@@ -10,10 +10,11 @@ import { initDiamond, renderDD, scoreD } from './views/diamond.js';
 import { initModel, renderInputs, runModel, syncPfromProject, syncEtype, resetModel, setEtype } from './views/model.js';
 import { initHome, renderHome } from './views/home.js';
 import { initRail, renderProjects } from './views/rail.js';
+import { initReport, renderReport } from './views/report.js';
 import { renderLearn, resetLearnView } from './views/learn.js';
 import { touchCompany } from './store.js';
 
-const PANELS = ['home', 'assess', 'dd', 'irr', 'learn', 'notes'];
+const PANELS = ['home', 'report', 'assess', 'dd', 'irr', 'learn', 'notes'];
 
 function go(id) {
   if (!PANELS.includes(id)) id = 'home';
@@ -21,10 +22,11 @@ function go(id) {
   $$('#mainnav button').forEach((b) => b.setAttribute('aria-current', b.dataset.go === id ? 'true' : 'false'));
   state.prefs.panel = id; saveLocal();
   if (id === 'learn') { resetLearnView(); renderLearn(); }
+  if (id === 'report') renderReport();
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function refreshDependents() { renderProjects(); renderHome(); }
+function refreshDependents() { renderProjects(); renderHome(); if (state.prefs.panel === 'report') renderReport(); }
 
 function renderAll() {
   syncPfromProject();
@@ -36,6 +38,7 @@ function renderAll() {
   syncEtype(); renderInputs(); runModel();
   renderProjects(); renderHome();
   if (state.prefs.panel === 'learn') renderLearn();
+  if (state.prefs.panel === 'report') renderReport();
 }
 
 function applyTheme(t) {
@@ -49,12 +52,22 @@ function renderAccount() {
   const a = $('#acct'), av = $('#acctav'), lb = $('#acctlbl');
   const signedIn = !!state.user;
   a.classList.toggle('synced', signedIn && state.sync === 'cloud');
+  a.classList.toggle('avonly', signedIn);
+  a.classList.toggle('out', !signedIn);
   if (signedIn) {
-    av.textContent = (state.user.name || state.user.email || '?').trim()[0].toUpperCase();
-    lb.textContent = state.sync === 'cloud' ? 'Synced' : 'Connecting…';
+    const who = (state.user.name || state.user.email || 'Account').trim();
+    const initial = who[0].toUpperCase();
+    av.innerHTML = state.user.photo
+      ? '<img src="' + state.user.photo + '" alt="" referrerpolicy="no-referrer" onerror="this.remove()">' + initial
+      : initial;
+    lb.textContent = '';
+    a.setAttribute('aria-label', who + ' — account');
+    a.title = who;
   } else {
-    av.textContent = isConfigured ? 'G' : '·';
+    av.textContent = '';
     lb.textContent = isConfigured ? 'Sign in' : 'This device';
+    a.setAttribute('aria-label', isConfigured ? 'Sign in with Google' : 'Storage');
+    a.title = '';
   }
   const box = $('#syncinfo');
   if (box) {
@@ -96,7 +109,8 @@ function boot() {
   applyTheme(state.prefs.theme || 'system');
 
   initHome({ nav: go });
-  initRail({ onChange: renderAll });
+  initReport({ nav: go });
+  initRail({ onChange: renderAll, onOpen: () => go('report') });
   // Views refresh their DEPENDENTS (the rail and the home summary), never the
   // whole tree — re-entering renderAll from inside a view's own render recurses.
   initAssess({ onChange: refreshDependents, queueProfile: () => saveLocal() });

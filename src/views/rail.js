@@ -5,8 +5,10 @@ import { openModal, closeModal } from '../modal.js';
 import { ALL_CRIT } from '../data/criteria.js';
 
 let onChange = () => {};
+let onOpen = () => {};
 export function initRail(opts = {}) {
   onChange = opts.onChange || onChange;
+  onOpen = opts.onOpen || onOpen;
   $('#newproj').addEventListener('click', promptNew);
 }
 
@@ -27,8 +29,10 @@ export function renderProjects() {
         (mm.a != null ? Math.round(mm.a) + ' / ' + Math.round(mm.b)
                       : Object.keys(p.d).length + '/' + ALL_CRIT.length + ' scored') + '</span></span>' +
         sparkFor(p) +
-        '<span class="pr"><b style="' + irrCls + '">' + irrTxt + '</b><span>IRR</span></span>';
-      b.onclick = () => { state.active = id; saveLocal(); touchCompany(id); onChange(); };
+        '<span class="pr"><b style="' + irrCls + '">' + irrTxt + '</b><span>IRR</span></span>' +
+        '<span class="pgo" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 5l7 7-7 7"/></svg></span>';
+      b.setAttribute('aria-label', 'Open the report for ' + p.name);
+      b.onclick = () => { state.active = id; saveLocal(); touchCompany(id); onChange(); onOpen(); };
       w.appendChild(b);
     });
   }

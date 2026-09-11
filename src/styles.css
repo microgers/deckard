@@ -67,6 +67,17 @@ a{color:var(--brand)}
   font-size:11px;font-weight:600;color:var(--tx2)}
 .acct.synced .av{background:var(--up-soft);color:var(--up)}
 .acct.synced{border-color:color-mix(in srgb,var(--up) 40%,transparent)}
+/* Signed in: one circle, the person's Google picture, nothing else. */
+.acct.avonly{padding:0;border:0;gap:0;background:none}
+.acct.avonly .who{display:none}
+.acct.avonly .av{width:31px;height:31px;position:relative;overflow:hidden;font-size:12.5px;
+  background:var(--surf2);color:var(--tx2);transition:box-shadow .15s}
+.acct.avonly:hover .av{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--line2)}
+.acct.avonly.synced .av{background:var(--surf2);color:var(--tx2)}
+.acct .av img{position:absolute;inset:0;width:100%;height:100%;border-radius:99px;object-fit:cover;display:block}
+/* Signed out: no avatar chip, just the words. */
+.acct.out{padding:6px 14px}
+.acct.out .av{display:none}
 
 /* ═══════════ layout ═══════════ */
 .shell{max-width:1300px;margin:0 auto;padding:30px 24px 90px;display:grid;
@@ -120,6 +131,9 @@ h1.big{font-size:clamp(30px,4vw,42px);letter-spacing:-.035em;font-weight:800}
 .pitem .pr b{font-family:var(--dsp);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;
   letter-spacing:-.02em;display:block}
 .pitem .pr span{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.pitem .pgo{flex:0 0 auto;display:grid;place-items:center;color:var(--tx3);opacity:.55;
+  margin-left:2px;transition:opacity .15s,transform .15s,color .15s}
+.pitem:hover .pgo{opacity:1;color:var(--brand);transform:translateX(2px)}
 .spark{width:46px;height:22px;flex:0 0 auto}
 .empty{padding:26px 10px;text-align:center;color:var(--tx3);font-size:13.5px;line-height:1.55}
 
@@ -244,6 +258,19 @@ th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);whit
 th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);font-weight:600;background:var(--surf)}
 td:first-child,th:first-child{text-align:left}
 tr:last-child td{border-bottom:0}
+/* Report criterion rows. A list, not a table — a table cannot be made to fit a
+   phone without either truncating the score or hiding the anchor text. */
+.crlist{border:1px solid var(--line);border-radius:var(--r);background:var(--raise);overflow:hidden}
+.crrow{display:flex;align-items:flex-start;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.crrow:last-child{border-bottom:0}
+.crmain{flex:1 1 auto;min-width:0}
+.crmain b{font-size:14px;font-weight:600;color:var(--tx)}
+.crsaid{display:block;font-size:12.5px;line-height:1.45;color:var(--tx3);margin-top:3px}
+.crw{flex:0 0 auto;font-family:var(--dsp);font-size:11.5px;font-weight:600;color:var(--tx3);
+  font-variant-numeric:tabular-nums;padding-top:2px}
+.crs{flex:0 0 auto;font-family:var(--dsp);font-size:16px;font-weight:700;
+  font-variant-numeric:tabular-nums;padding-top:1px;min-width:40px;text-align:right}
+.crs span{font-size:11px;font-weight:600;color:var(--tx3);margin-left:1px}
 td.neg{color:var(--down)}
 .sens td.c{color:var(--on-brand);font-weight:700}
 
@@ -293,7 +320,6 @@ td.neg{color:var(--down)}
   .dots{grid-template-columns:repeat(6,1fr);width:100%}
   .q{gap:14px}
   .likert{grid-template-columns:repeat(5,1fr);width:100%}
-  .acct span.who{display:none}
   .mainnav{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
     mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
   .mainnav button{padding:6px 10px;font-size:13.5px}
