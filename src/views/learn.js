@@ -231,9 +231,87 @@ function feedbackBlock(item) {
     '<div>' + md(item.why) + '</div>' +
     (confidentWrong ? '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">You were certain and it was wrong. That is the most correctable kind of error — and the most likely to come back, so this one returns later in the session and again sooner than usual.</div>' : '') +
     '</div>' +
-    '<div class="grades">' +
-      '<button data-grade="0">Again</button><button data-grade="3">Hard</button>' +
-      '<button data-grade="4">Good</button><button data-grade="5">Easy</button>' +
+    gradeButtons(item);
+}
+
+/**
+ * What a grade button will ACTUALLY do, in days.
+ *
+ * Runs the real scheduler on a copy of the card rather than restating its
+ * arithmetic, so a label can never drift from the engine. `review()` treats
+ * its card as immutable, so this is a safe dry run.
+ */
+function projectDays(item, q, confidentWrong) {
+  const card = state.srs[item.id] || newCard(item.id);
+  return review(card, q, Date.now(), { confidentWrong }).interval;
+}
+
+function whenLabel(d) {
+  if (d <= 1) return 'tomorrow';
+  if (d < 14) return 'in ' + d + ' days';
+  if (d < 60) return 'in ' + Math.round(d / 7) + ' weeks';
+  return 'in ' + Math.round(d / 30) + ' months';
+}
+
+/**
+ * Only ever offer a rating the scheduler will honour.
+ *
+ * `grade()` forces a missed item to Again, and caps an unsure-but-correct
+ * answer at Hard. The old block printed all four buttons regardless, so on a
+ * wrong answer every button did exactly the same thing — the UI asked a
+ * question and then threw the answer away, which is unreadable rather than
+ * merely redundant. Each button now states its own consequence in days,
+ * because the effect of a rating is on timing, not on a score.
+ */
+function gradeButtons(item) {
+  const good = session.correct;
+  const confidentWrong = !good && session.confidence === 'certain';
+
+  if (!good) {
+    return '<div class="grades g1">' +
+      '<button data-grade="' + GRADE.AGAIN + '"><b>Got it — keep going</b>' +
+      '<span>back ' + whenLabel(projectDays(item, GRADE.AGAIN, confidentWrong)) + ', and again later this session</span></button>' +
+      '</div>';
+  }
+
+  const opts = session.confidence === 'unsure'
+    ? [[GRADE.AGAIN, 'Still shaky'], [GRADE.HARD, 'Right, but a struggle']]
+    : [[GRADE.AGAIN, 'Still shaky'], [GRADE.HARD, 'A struggle'],
+       [GRADE.GOOD, 'Knew it'], [GRADE.EASY, 'Instantly']];
+
+  const days = opts.map(function (o) { return projectDays(item, o[0], false); });
+
+  // SM-2 sets the next gap as interval x ease, and a PASSING grade only moves
+  // the ease — so Hard, Good and Easy nearly always return the card on the same
+  // day and diverge only from the review after that. On a card's first pass all
+  // four give one day. Printing one date across three or four buttons reads as
+  // a bug, so a shared date is stated once and only a genuinely different
+  // projection gets its own line.
+  const pass = days.slice(1);                       // opts[0] is always Again
+  const uniformPass = pass.every(function (d) { return d === pass[0]; });
+  const allSame = days.every(function (d) { return d === days[0]; });
+  const fresh = !(state.srs[item.id] && state.srs[item.id].reps);
+
+  let hint, show;
+  if (allSame) {
+    hint = (fresh ? 'This one is new, so it comes back ' : 'Every option brings this back ') +
+      whenLabel(days[0]) + ' either way. Your rating sets how fast the gaps grow after that.';
+    show = function () { return false; };
+  } else if (uniformPass) {
+    hint = 'Getting it right brings this back ' + whenLabel(pass[0]) +
+      '. Your rating sets how fast the gaps grow after that.';
+    show = function (i) { return i === 0; };        // only Again differs today
+  } else {
+    hint = 'How did recalling that feel? It sets when you see it next.';
+    show = function () { return true; };
+  }
+
+  return '<div class="grades g' + opts.length + '">' +
+    '<span class="ghint">' + hint + '</span>' +
+    opts.map(function (o, i) {
+      return '<button data-grade="' + o[0] + '"><b>' + o[1] + '</b>' +
+        (show(i) ? '<span>' + whenLabel(days[i]) + '</span>' : '') + '</button>';
+    }).join('') +
     '</div>';
 }
 
@@ -256,7 +334,7 @@ function grade(item, q) {
   let g = q;
   if (!session.correct) g = GRADE.AGAIN;
   else if (session.confidence === 'unsure') g = Math.min(q, GRADE.HARD);
-  else g = q || autoGrade(true, latency, 6000, session.confidence);
+  else g = q == null ? autoGrade(true, latency, 6000, session.confidence) : q;
 
   state.srs[item.id] = review(state.srs[item.id] || newCard(item.id), g, Date.now(), { confidentWrong });
   state.reviewLog.push({
