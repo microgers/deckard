@@ -1,4 +1,4 @@
-import { $, $$, el, esc, money, dollars, pct } from '../ui.js';
+import { $, $$, el, esc, money, dollars, pct, keepInPlace } from '../ui.js';
 import { model } from '../engine.js';
 import { FIELDS, DEF } from '../data/fields.js';
 import { activeCompany, touchCompany } from '../store.js';
@@ -41,9 +41,10 @@ function renderInputs(){
         '<input type="range" id="rg-'+f.k+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+'" value="'+P[f.k]+'" aria-label="'+f.n+'">';
       w.appendChild(d);
       var num=$("#in-"+f.k,d), rg=$("#rg-"+f.k,d);
-      num.oninput=function(){ var v=parseF(f,num.value); if(v==null)return; P[f.k]=v; rg.value=v; persist(); runModel(); };
+      var hold=function(fn){ keepInPlace('#in-'+f.k, fn); };
+      num.oninput=function(){ var v=parseF(f,num.value); if(v==null)return; P[f.k]=v; rg.value=v; persist(); hold(runModel); };
       num.onblur=function(){ num.value=disp(f,P[f.k]); rg.value=P[f.k]; };
-      rg.oninput=function(){ P[f.k]=parseFloat(rg.value); num.value=disp(f,P[f.k]); persist(); runModel(); };
+      rg.oninput=function(){ P[f.k]=parseFloat(rg.value); num.value=disp(f,P[f.k]); persist(); hold(runModel); };
     });
   });
 }
