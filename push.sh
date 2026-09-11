@@ -41,9 +41,18 @@ say "4/5  Creating the repository ($VIS)"
 if git remote get-url origin >/dev/null 2>&1; then
   say "origin already set: $(git remote get-url origin)"
 else
-  gh repo create "$REPO" "$VIS" --source=. --remote=origin \
-    --description "Deckard - a buy-side workbench for small-business acquisitions" \
-    || die "Could not create the repo. If the name is taken, run: ./push.sh some-other-name"
+  if gh repo create "$REPO" "$VIS" --source=. --remote=origin \
+       --description "Deckard - a buy-side workbench for small-business acquisitions" 2>/tmp/ghcreate.err; then
+    say "created $REPO"
+  elif grep -qi "already exists\|name already" /tmp/ghcreate.err; then
+    OWNER=$(gh api user -q .login)
+    say "$OWNER/$REPO already exists on GitHub - pointing at it instead"
+    git remote add origin "https://github.com/$OWNER/$REPO.git" 2>/dev/null || \
+      git remote set-url origin "https://github.com/$OWNER/$REPO.git"
+  else
+    cat /tmp/ghcreate.err
+    die "Could not create the repo. Try a different name:  ./push.sh some-other-name"
+  fi
 fi
 
 say "5/5  Pushing"
