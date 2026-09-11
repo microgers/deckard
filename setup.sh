@@ -67,7 +67,17 @@ say "6/8  Security rules"
 $FB deploy --only firestore:rules --project "$PROJECT" 2>&1 | tail -4
 
 say "7/8  Build"
-npm run build 2>&1 | tail -4 || die "Build failed."
+if [ "${SKIP_BUILD:-0}" = "1" ] && [ -f dist/index.html ]; then
+  say "SKIP_BUILD=1 and dist/ exists - using the existing build"
+else
+  rm -rf dist
+  npm run build > BUILD-LOG.txt 2>&1
+  if [ $? -ne 0 ]; then
+    tail -40 BUILD-LOG.txt
+    die "Build failed. The FULL error is in BUILD-LOG.txt - send that to Claude."
+  fi
+  tail -3 BUILD-LOG.txt
+fi
 
 say "8/8  Deploy"
 $FB deploy --only hosting --project "$PROJECT" 2>&1 | tail -6
