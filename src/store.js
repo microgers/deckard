@@ -67,10 +67,11 @@ export function newCompany(name = 'Untitled target', extra = {}) {
  * because the others say exactly the same thing.
  */
 export function dedupeIdentical() {
+  const canon = (o) => JSON.stringify(Object.keys(o || {}).sort().map((k) => [k, o[k]]));
   const groups = new Map();
   Object.values(state.companies).forEach((c) => {
     if (!c || !c.id) return;
-    const k = JSON.stringify([c.name, c.d, c.i]);
+    const k = c.name + '\u0000' + canon(c.d) + '\u0000' + canon(c.i);
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(c);
   });
@@ -105,7 +106,11 @@ export function touchCompany(id = state.active) {
 }
 export function deleteCompany(id) {
   delete state.companies[id];
-  if (cloud) cloud.del('companies', id);
+  // A snapshot already in flight still carries this document. Remember the
+  // deletion until the server stops sending it, or the row comes straight back.
+  tombstones.add(id);
+  pending.delete(id);
+  if (cloud) cloud.del('companies', id).catch(() => {});
   if (state.active === id) state.active = Object.keys(state.companies)[0] || null;
   ensureCompany();
   saveLocal(); queuePush();
@@ -114,6 +119,7 @@ export function deleteCompany(id) {
 /* ── cloud ─────────────────────────────────────────────────────────────── */
 let cloud = null;
 let knownRemote = new Set();
+const tombstones = new Set();
 let pushTimer = null;
 let pending = new Set();
 let inFlight = new Set();
@@ -172,7 +178,7 @@ export async function connectCloud(user) {
       if (!r || (l.updated || 0) > (r.updated || 0)) push.push(id);
     });
     remote.forEach((r) => {
-      if (!r || !r.id) return;
+      if (!r || !r.id || tombstones.has(r.id)) return;
       const l = state.companies[r.id];
       if (!l || (r.updated || 0) > (l.updated || 0)) state.companies[r.id] = r;
     });
@@ -191,6 +197,7 @@ export async function connectCloud(user) {
       const seen = new Set();
       docs.forEach((d) => {
         if (!d || !d.id) return;
+        if (tombstones.has(d.id)) { seen.add(d.id); return; }
         seen.add(d.id); knownRemote.add(d.id);
         const l = state.companies[d.id];
         if (!l || (d.updated || 0) >= (l.updated || 0)) state.companies[d.id] = d;
@@ -198,6 +205,7 @@ export async function connectCloud(user) {
       // Only honour a deletion the server has actually confirmed before, and
       // never act on an empty snapshot.
       if (docs.length) {
+        tombstones.forEach((id) => { if (!docs.some((d) => d && d.id === id)) tombstones.delete(id); });
         Object.keys(state.companies).forEach((id) => {
           if (!seen.has(id) && knownRemote.has(id) && !protectedId(id)) {
             delete state.companies[id]; knownRemote.delete(id);
