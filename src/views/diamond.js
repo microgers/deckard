@@ -1,4 +1,4 @@
-import { $, el, esc } from '../ui.js';
+import { $, el, esc, keepInPlace } from '../ui.js';
 import { CRIT_A, CRIT_B, aggregate, hardStops, PASS_MARK } from '../data/criteria.js';
 import { activeCompany, touchCompany } from '../store.js';
 import { openModal, closeModal } from '../modal.js';
@@ -18,7 +18,12 @@ function openCrit(c){
     var b=el("button","opt");
     b.setAttribute("aria-checked", sel===v?"true":"false");
     b.innerHTML='<span class="on">'+v+'</span><span class="ot">'+esc(txt)+'</span><span class="ck">&#10003;</span>';
-    b.onclick=function(){ p.d[c.k]=v; touchCompany(); renderDD(); scoreD(); onChange(); closeModal(); };
+    b.onclick=function(){
+      keepInPlace('#ddboard [data-k="'+c.k+'"]', function(){
+        p.d[c.k]=v; touchCompany(); renderDD(); scoreD();
+      });
+      onChange(); closeModal();
+    };
     L.appendChild(b);
   });
 }
@@ -36,7 +41,7 @@ function renderDD(){
       '<span class="sc" style="color:'+(done===8?g[3]:"var(--tx3)")+'">'+(done===8?Math.round(sc):done+"/8")+'</span>'));
     g[2].forEach(function(c){
       var sel=p.d[c.k];
-      var row=el("div","crit");
+      var row=el("div","crit"); row.dataset.k=c.k;
       row.appendChild(el("div",null,'<div class="cn">'+esc(c.n)+(c.crit?' <span style="color:var(--down)">&#9670;</span>':'')+'</div>'+
         '<div class="cd">'+esc(c.d)+'</div><span class="cw">weight '+c.w.toFixed(1)+'&times;'+(c.crit?' &middot; critical':'')+'</span>'+
         (sel!=null?'<div class="ca">&ldquo;'+esc(c.a[sel])+'&rdquo;</div>':'')));
@@ -45,7 +50,12 @@ function renderDD(){
         var b=el("button",null,String(v)); b.type="button"; b.dataset.v=v;
         b.setAttribute("aria-pressed", sel===v?"true":"false");
         b.setAttribute("aria-label",c.n+" — "+v+" of 5 — "+c.a[v]); b.title=c.a[v];
-        b.onclick=(function(ck,vv){return function(){ p.d[ck]=vv; touchCompany(); renderDD(); scoreD(); onChange(); }})(c.k,v);
+        b.onclick=(function(ck,vv){return function(){
+          keepInPlace('#ddboard [data-k="'+ck+'"]', function(){
+            p.d[ck]=vv; touchCompany(); renderDD(); scoreD();
+          });
+          onChange();
+        }})(c.k,v);
         dots.appendChild(b);
       }
       var more=el("button","tiny"); more.textContent="what these mean";

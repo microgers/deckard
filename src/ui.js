@@ -27,3 +27,29 @@ export function md(text) {
     .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')
     .replace(/\n/g, '<br>');
 }
+
+/**
+ * Re-render without yanking the page out from under the reader.
+ *
+ * Every one of these views recomputes a RESULT block that sits ABOVE the
+ * control you are using. When that block changes height — a warning appears, a
+ * verdict card replaces a one-line note — everything below it moves. Measured
+ * on a phone, dragging the SBA slider into an over-funded stack moved that
+ * slider 1,759px up the page: your finger is now on something else entirely,
+ * which reads as the app throwing you onto a different screen.
+ *
+ * So: measure the control before and after the render, then scroll by the
+ * difference. `sel` is re-queried after the render because these views rebuild
+ * their lists wholesale, which destroys the original element.
+ */
+export function keepInPlace(sel, render) {
+  const find = () => (typeof sel === 'function' ? sel() : document.querySelector(sel));
+  const a = find();
+  if (!a) { render(); return; }
+  const before = a.getBoundingClientRect().top;
+  render();
+  const b = find();
+  if (!b) return;
+  const delta = b.getBoundingClientRect().top - before;
+  if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
+}

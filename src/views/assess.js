@@ -1,4 +1,4 @@
-import { $, el, pct } from '../ui.js';
+import { $, el, pct, keepInPlace } from '../ui.js';
 import { DIMS, QS, SCALE, SAMPLE, RUNGS, scoreAssessment } from '../data/questions.js';
 import { state, saveLocal } from '../store.js';
 
@@ -12,7 +12,7 @@ function renderQ(){
   var w=$("#qlist"); w.innerHTML="";
   var box=el("div","qbox");
   QS.forEach(function(q,i){
-    var row=el("div","q");
+    var row=el("div","q"); row.dataset.q=i;
     row.innerHTML='<div class="qt"><span class="qn">'+String(i+1).padStart(2,"0")+'</span><span>'+q.t+'</span></div>';
     var wrap=el("div",null); wrap.style.flex="0 0 auto";
     var lk=el("div","likert");
@@ -20,7 +20,12 @@ function renderQ(){
       var b=el("button",null,String(v)); b.type="button";
       b.setAttribute("aria-pressed", state.assessment[i]===v?"true":"false");
       b.setAttribute("aria-label",SCALE[v-1]); b.title=SCALE[v-1];
-      b.onclick=(function(qi,vv){return function(){ state.assessment[qi]=vv; saveLocal(); queueProfile(); renderQ(); scoreA(); onChange(); }})(i,v);
+      b.onclick=(function(qi,vv){return function(){
+        keepInPlace('#qlist [data-q="'+qi+'"]', function(){
+          state.assessment[qi]=vv; saveLocal(); queueProfile(); renderQ(); scoreA();
+        });
+        onChange();
+      }})(i,v);
       lk.appendChild(b);
     }
     wrap.appendChild(lk);
