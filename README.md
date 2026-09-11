@@ -1,4 +1,6 @@
-# Acquisition Bench
+# Deckard
+
+*Named for the man whose job was deciding what was real.*
 
 A buy-side workbench for buying a small business. Three decision tools and a
 curriculum that teaches every part of them.

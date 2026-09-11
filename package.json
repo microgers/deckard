@@ -1,9 +1,9 @@
 {
-  "name": "acquisition-bench",
+  "name": "deckard",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "A buy-side workbench for small-business acquisitions: operator readiness, a two-diamond target scorecard, a levered IRR model, and a spaced-repetition curriculum.",
+  "description": "Deckard — a buy-side workbench for small-business acquisitions: operator readiness, a two-diamond target scorecard, a levered IRR model, and a spaced-repetition curriculum.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
