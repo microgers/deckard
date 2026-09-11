@@ -3,7 +3,7 @@
 # so Claude can read it without you copying anything back.
 cd "$(dirname "$0")"
 echo "Running setup — full output is being saved to SETUP-LOG.txt"
-./setup.sh "$@" 2>&1 | tee SETUP-LOG.txt
+bash ./setup.sh "$@" 2>&1 | tee SETUP-LOG.txt
 STATUS=${PIPESTATUS[0]}
 echo "exit status: $STATUS" >> SETUP-LOG.txt
 if [ "$STATUS" -ne 0 ] || [ ! -f SETUP-RESULT.txt ]; then
