@@ -22,10 +22,10 @@ say "Signed in as ${ACCOUNT:-unknown}"
 say "2/8  Project"
 PROJECT="${1:-}"
 if [ -z "$PROJECT" ] && [ -f .firebaserc ]; then
-  PROJECT=$(node -p "require('./.firebaserc').projects.default" 2>/dev/null || echo "")
+  PROJECT=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('.firebaserc','utf8')).projects.default||'')}catch(e){console.log('')}" 2>/dev/null)
 fi
 if [ -z "$PROJECT" ]; then
-  PROJECT=$($FB projects:list 2>/dev/null | awk -F'|' 'NF>2 {gsub(/ /,"",$2); if ($2 ~ /^[a-z0-9][a-z0-9-]{3,}$/) print $2}' | head -1)
+  PROJECT=$($FB projects:list 2>/dev/null | tr -d ' ' | grep -oE '[a-z][a-z0-9-]{4,28}-[a-z0-9]{5}|[a-z][a-z0-9-]{5,28}' | grep -vE '^(projects|firebase|preparing|display|resource|number|project)' | head -1)
   [ -n "$PROJECT" ] && say "Found existing project: $PROJECT"
 fi
 if [ -z "$PROJECT" ]; then
