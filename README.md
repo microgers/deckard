@@ -133,7 +133,7 @@ resulting hostname to Firebase authorized domains or sign-in will fail.
 | **Vercel** | Auto-detects Vite. Set the `VITE_*` vars under Settings → Environment Variables. `vercel.json` in this repo handles the SPA rewrite. Preview deploys get unique hostnames that will not be authorized — sign-in works on production only unless you add a stable preview domain. |
 | **Netlify** | `netlify.toml` is included. Set env vars under Site configuration → Environment variables. |
 | **Firebase Hosting** | `firebase.json` is included. `firebase deploy`. Best choice if you ever want redirect-based sign-in, since the app is then same-origin with the auth handler. Env vars must be set locally or in CI — Hosting has no build-time env store. |
-| **GitHub Pages** | `.github/workflows/deploy.yml` is included. Set `VITE_BASE_PATH` to `/<repo>/` as a repository variable. Pages serves static files only, so the workflow copies `index.html` to `404.html`. |
+| **GitHub Pages** | Set `VITE_BASE_PATH` to `/<repo>/`. Pages serves static files only, so copy `index.html` to `404.html` after building. A workflow is not included - pushing one needs the `workflow` OAuth scope (`gh auth refresh -h github.com -s workflow`). |
 
 Env vars are **inlined at build time**, not read at runtime — changing one
 requires a rebuild and redeploy.
