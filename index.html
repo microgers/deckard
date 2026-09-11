@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="A buy-side workbench for small-business acquisitions: operator readiness, a two-diamond target scorecard, a levered IRR model, and a spaced-repetition curriculum.">
+<title>Acquisition Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 32'%3E%3Cpath d='M29 16 39 3 49 16 39 29Z' fill='%2300D26A'/%3E%3Cpath d='M3 16 13 3 23 16 13 29Z' fill='none' stroke='%2300D26A' stroke-width='2.6'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top"><div class="in">
+  <div class="logo">
+    <svg width="26" height="16" viewBox="0 0 52 32" aria-hidden="true">
+      <path d="M3 16 13 3 23 16 13 29Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" opacity=".5"/>
+      <path d="M29 16 39 3 49 16 39 29Z" fill="currentColor"/>
+    </svg>
+    <span>Acquisition Bench</span>
+  </div>
+  <nav class="mainnav" id="mainnav">
+    <button data-go="home">Home</button>
+    <button data-go="assess">Operator</button>
+    <button data-go="dd">Diamond</button>
+    <button data-go="irr">Model</button>
+    <button data-go="learn">Learn</button>
+    <button data-go="notes">Notes</button>
+  </nav>
+  <div class="topr">
+    <button class="iconbtn" id="themebtn" title="Theme" aria-label="Switch theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg>
+    </button>
+    <button class="acct" id="acct">
+      <span class="av" id="acctav">·</span><span class="who" id="acctlbl">Sign in</span>
+    </button>
+  </div>
+</div></header>
+
+<div class="shell">
+<main class="col">
+
+  <!-- ═══ HOME ═══ -->
+  <section class="panel" id="p-home">
+    <div class="hero" id="homehero"></div>
+    <div class="sectitle">The three gates</div>
+    <div id="gatelist"></div>
+    <div class="prose flat">
+      <h3 style="margin-top:0">Why this order</h3>
+      <p>Most people who want to buy a small business start with the spreadsheet. That&rsquo;s the third question.</p>
+      <p>A searcher&rsquo;s scarcest resource is rarely capital &mdash; it&rsquo;s attention over a long, unglamorous search. Stanford&rsquo;s search fund studies put median time to acquisition at roughly 20 months, and a substantial minority of searches never close at all. Every hour spent modeling a business you were never going to buy, or were never suited to run, is taken from the search that would have found the one you were.</p>
+      <p>So: disqualify yourself first (it&rsquo;s free), disqualify the business second (it&rsquo;s cheap), and only then argue about price (it&rsquo;s expensive, and it&rsquo;s the only one that needs a lawyer).</p>
+    </div>
+    <div class="note" style="margin-top:22px"><b>An educational model, not advice.</b> It will not replace a quality-of-earnings report, a lender&rsquo;s credit memo, or a transaction attorney. Use it to decide what deserves those things.</div>
+  </section>
+
+  <!-- ═══ OPERATOR ═══ -->
+  <section class="panel" id="p-assess">
+    <div class="hero">
+      <div class="kicker"><span class="dotb"></span>Gate I &middot; about you, not a company</div>
+      <h1 class="big">Operator Assessment</h1>
+      <p class="lede">Twelve statements. It places you on the ownership ladder and names the capacity holding you back. This one is global &mdash; it stays the same whichever company you&rsquo;re looking at.</p>
+      <div class="btnrow"><button class="btn ghost sm" data-modal="primer-a">Read the primer</button></div>
+    </div>
+    <div id="ares"></div>
+    <div class="sectitle">The twelve statements</div>
+    <div id="qlist"></div>
+    <div class="btnrow">
+      <button class="btn ghost sm" id="afill">Fill with a sample profile</button>
+      <button class="btn danger sm" id="aclear">Clear answers</button>
+    </div>
+  </section>
+
+  <!-- ═══ DIAMOND ═══ -->
+  <section class="panel" id="p-dd">
+    <div class="hero">
+      <div class="kicker"><span class="dotb"></span>Gate II &middot; <span id="ddwho">no company selected</span></div>
+      <h1 class="big">The Double Diamond</h1>
+      <p class="lede">Diamond I scores the business. Diamond II scores the deal. Each clears at 70, and both must clear.</p>
+      <div class="btnrow"><button class="btn ghost sm" data-modal="primer-d">Read the primer</button></div>
+    </div>
+    <div id="dres"></div>
+    <div id="ddboard"></div>
+    <div class="btnrow">
+      <button class="btn ghost sm" id="dfill">Load the example scores</button>
+      <button class="btn danger sm" id="dclear">Clear scores</button>
+    </div>
+  </section>
+
+  <!-- ═══ MODEL ═══ -->
+  <section class="panel" id="p-irr">
+    <div class="hero">
+      <div class="kicker"><span class="dotb"></span>Gate III &middot; <span id="irrwho">no company selected</span></div>
+      <h1 class="big">IRR &amp; Deal Model</h1>
+      <p class="lede">A full levered model. Change any assumption and every number moves &mdash; including the ones that decide whether a lender funds it at all.</p>
+      <div class="btnrow"><button class="btn ghost sm" data-modal="primer-i">What IRR is, and what it hides</button></div>
+    </div>
+    <div id="ires"></div>
+    <div class="sectitle">Assumptions</div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+        <h4 style="font-size:16px;font-weight:700">The business</h4>
+        <div class="seg" id="etype" style="margin-left:auto">
+          <button data-t="sde" aria-pressed="false">Listed as SDE</button>
+          <button data-t="ebitda" aria-pressed="true">Already EBITDA</button>
+        </div>
+      </div>
+      <div class="inpgrid" id="grpBiz"></div>
+      <p class="tiny" id="ftrBiz" style="margin-top:14px"></p>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h4 style="font-size:16px;font-weight:700;margin-bottom:18px">The capital stack</h4>
+      <div class="inpgrid" id="grpCap"></div>
+      <div class="note" id="stacknote" style="margin-top:18px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h4 style="font-size:16px;font-weight:700;margin-bottom:18px">Operating &amp; exit</h4>
+      <div class="inpgrid" id="grpOps"></div>
+    </div>
+    <div class="btnrow"><button class="btn danger sm" id="ireset">Reset to the worked example</button></div>
+  </section>
+
+
+  <!-- ═══ LEARN ═══ -->
+  <section class="panel" id="p-learn">
+    <div class="hero">
+      <div class="kicker"><span class="dotb"></span>Learn &amp; retain</div>
+      <h1 class="big">Every concept, and a quiz that makes it stick</h1>
+      <p class="lede">Fifty-three concepts covering every criterion, every model input and every number the model produces &mdash; taught, then tested on a schedule built to survive months, not minutes.</p>
+    </div>
+    <div id="learnroot"></div>
+  </section>
+
+  <!-- ═══ REFERENCE ═══ -->
+  <section class="panel" id="p-notes">
+    <div class="hero">
+      <div class="kicker"><span class="dotb"></span>Reference</div>
+      <h1 class="big">Notes &amp; sources</h1>
+      <p class="lede">What&rsquo;s grounded in published figures, what&rsquo;s a modeling convention, and what to check before relying on any of it.</p>
+    </div>
+    <div class="sectitle">Where the numbers come from</div>
+    <div class="prose">
+      <h3 style="margin-top:0">SBA 7(a) terms</h3>
+      <p>Maximum loan $5,000,000. Business-acquisition and goodwill loans amortize over a maximum of <b>10 years</b>, with no SBA prepayment penalty at that maturity. Variable rates cap at Prime + 3.00% for loans over $350,000 &mdash; with the Wall Street Journal Prime Rate at <b>6.75%</b> (its level since December 2025; this page does not update, so check it) that is a 9.75% ceiling, and acquisition paper typically prices at Prime + 2.50&ndash;3.00%. Minimum equity injection for a change of ownership is <b>10% of total project cost</b>; a seller note can count for at most half of that, and only if it sits on full standby &mdash; no principal and no interest paid &mdash; for the life of the SBA loan.</p>
+      <h3>Amortization</h3>
+      <p>Debt service runs on a true <b>monthly</b> schedule, rolled up annually, so each year&rsquo;s interest/principal split is exact. Approximating annual interest as opening balance &times; rate overstates it by roughly half a year of amortization; this model doesn&rsquo;t do that.</p>
+      <h3>Taxes</h3>
+      <p>Taxed on EBITDA &minus; D&amp;A &minus; interest, floored at zero. Interest is deductible; principal is not, which is exactly why a highly levered small business can look profitable and still be cash-poor. Most SBA acquisitions are asset purchases, which step up basis and amortize goodwill over 15 years under IRC &sect;197 &mdash; a real shield this model approximates through the D&amp;A input.</p>
+      <h3>The IRR solver</h3>
+      <p>Bracketed bisection over a 2,000-point scan of [&minus;100%, +1000%], not Newton&rsquo;s method. It finds every root the scan separates; roots closer together than about half a percentage point, and returns above +1000%, fall outside it, and the model says so rather than guessing. Where several roots exist it flags them &mdash; a spreadsheet&rsquo;s <code>IRR()</code> silently returns whichever sat nearest its guess. The classic two-root case [&minus;100, 230, &minus;132] correctly returns both 10% and 20%.</p>
+      <h3>Base rates worth remembering</h3>
+      <p>Stanford&rsquo;s search fund studies report a strong <i>aggregate</i> return for the asset class, but the distribution is brutal: a substantial share of completed acquisitions lose money outright, and many searches never close at all. Any model that assumes nothing goes wrong &mdash; including this one, unless you make it &mdash; is not a model of the asset class. Run a downside case where growth is negative and the exit multiple compresses.</p>
+    </div>
+    <div class="sectitle">On the frameworks</div>
+    <div class="prose">
+      <p>&ldquo;Double Diamond&rdquo; names two different things. In design it is the UK Design Council&rsquo;s model of the innovation process &mdash; Discover, Define, Develop, Deliver &mdash; where each diamond diverges then converges. In acquisition entrepreneurship, practitioners use the same diverge/converge shape as a scorecard for rating targets.</p>
+      <p>The scorecard here is the acquisition reading, built from criteria standard across buy-side screening: customer fragmentation, revenue recurrence, management depth, capex intensity, owner dependence, financeability, quality of earnings, transition risk. It is an independent implementation of a common approach, not a reproduction of any particular practitioner&rsquo;s proprietary scorecard &mdash; if you are working from a specific published framework, use its weights rather than these.</p>
+      <p>The ownership ladder in Gate I follows the same logic: the distinction between an employee, an equity employee, an owner, and an owner-operator is a common framing in the literature, and the four capacities scored here were chosen because they are the ones an SBA personal guarantee puts to the test.</p>
+    </div>
+    <div class="sectitle">Limits &mdash; read before you rely on this</div>
+    <div class="prose"><ul style="color:var(--tx2);padding-left:20px;font-size:15.5px;line-height:1.62">
+      <li>No search costs, no owner salary during the hold, no transaction costs at exit.</li>
+      <li>No tax on the gain at sale &mdash; exit proceeds arrive untaxed, which flatters IRR by several points.</li>
+      <li>Fixed interest rate. Real SBA variable loans reset quarterly against Prime.</li>
+      <li>No working-capital peg true-up, no earnout, no real estate, no revolver.</li>
+      <li>No probability of impairment. The model cannot lose you money unless you tell it to.</li>
+      <li>Flat tax rate. Entity choice, state tax, and pass-through treatment all matter and none are here.</li>
+      <li>SBA rules change. The 50 10 series Standard Operating Procedure is revised regularly and the equity-injection and standby provisions move with it. Confirm current terms with a lender.</li>
+    </ul></div>
+    <div class="note bad" style="margin-top:20px"><b>Not investment, legal, or tax advice.</b> This is a teaching model. Before you sign anything, get a quality-of-earnings report, a transaction attorney, and a lender&rsquo;s term sheet.</div>
+    <div class="sectitle">Your data</div>
+    <div id="syncinfo"></div>
+    <div class="btnrow"><button class="btn danger sm" id="resetall">Clear everything on this device</button></div>
+    <p class="tiny" style="margin-top:28px">References: SBA 7(a) terms, conditions &amp; eligibility &middot; Stanford GSB Search Fund Study &middot; Design Council, The Double Diamond &middot; BizBuySell Insight Report.</p>
+  </section>
+
+</main>
+
+<aside class="rail">
+  <div class="railhead"><b>Saved companies</b><button id="newproj">+ New</button></div>
+  <div id="plist"></div>
+  <div id="railfoot"></div>
+</aside>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modaltitle">
+  <div class="mh"><b id="modaltitle">&nbsp;</b><button class="iconbtn" id="modalx" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="mb" id="modalbody"></div>
+  <div class="mf" id="modalfoot"></div>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

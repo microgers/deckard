@@ -1,0 +1,23 @@
+{
+  "name": "acquisition-bench",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A buy-side workbench for small-business acquisitions: operator readiness, a two-diamond target scorecard, a levered IRR model, and a spaced-repetition curriculum.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/engine.test.js && node test/srs.test.js && node test/curriculum.test.js"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.30.0",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

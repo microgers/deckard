@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// Every document a person creates lives under users/{their uid}.
+// Nobody — including the project owner, from the client — can read another
+// person's subtree. request.auth is populated from a Firebase ID token whose
+// signature is verified server-side before these rules run, so the uid cannot
+// be forged by the client.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow get, create, update, delete: if isOwner(userId);
+      allow list: if false;                 // never allow enumerating users
+
+      // companies/{companyId}: one saved acquisition target
+      match /companies/{companyId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 120;
+      }
+
+      // profile/{docId}: assessment answers, preferences
+      match /profile/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // srs/{itemId}: one spaced-repetition scheduling record per curriculum item
+      match /srs/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // reviews/{eventId}: append-only review log (kept so the scheduler can be
+      // upgraded to FSRS later without losing history)
+      match /reviews/{eventId} {
+        allow read, create: if isOwner(userId);
+        allow update, delete: if false;
+      }
+    }
+
+    // Everything else is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+*.local
+
+# Vite cache
+.vite/
+node_modules/.vite/
+
+# Environment — never commit real .env files
+.env
+.env.*
+!.env.example
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# NEVER commit these — full-privilege keys that bypass all security rules
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+client_secret*.json
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Hosting caches
+.vercel
+.netlify
+
+# Firebase CLI credentials, if you point XDG_CONFIG_HOME here
+.fbconfig/
+SETUP-RESULT.txt
+ab-sdk.txt
+
+# local run artifacts
+dist-verify/
+SETUP-LOG.txt
+DIAGNOSE.txt
+firebase-debug.log
+.fuse_hidden*
