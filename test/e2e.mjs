@@ -125,7 +125,7 @@ while (guard++ < 60) {
   if ((await p.$$('[data-grade]')).length) { await p.click('.grades button:last-child'); await p.waitForTimeout(140); }
 }
 ok('session reaches a completion card', await p.isVisible('.sessiondone'), 'after ' + guard + ' steps');
-ok('ends with next-session guidance, not a score', (await T('.sessiondone')).includes('Next session'));
+ok('ends with return-date guidance, not a score', (await T('.sessiondone')).includes('Come back'));
 ok('completion reports a retention forecast', (await T('.sessiondone')).includes('90 days'));
 
 console.log('— persistence —');

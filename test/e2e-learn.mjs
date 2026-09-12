@@ -24,7 +24,7 @@ for (const w of [430, 1360]) {
   await p.click('#startsession');
   await p.waitForTimeout(400);
 
-  let sawWrong = 0, sawRight = 0, sawUnsure = 0, ordered = 0;
+  let sawWrong = 0, sawRight = 0, sawUnsure = 0, ordered = 0, datedRows = 0;
   // A missed item returns later in the same session, and the feedback marks
   // which option was right — so on the second encounter the correct answer is
   // known. That makes the correct-answer paths deterministic instead of
@@ -60,9 +60,13 @@ for (const w of [430, 1360]) {
         correct: !!document.querySelector('.feedback:not(.miss)'),
         labels: btns.map((x) => (x.querySelector('b') || x).textContent.trim()),
         days: btns.map((x) => (x.querySelector('span') ? x.querySelector('span').textContent.trim() : null)),
+        text: wrap.innerText,
       };
     });
     if (!got) break;
+
+    // Timing belongs at the end of the session, not after every question.
+    if (/\bdays?\b|\bweeks?\b|\bmonths?\b|tomorrow/i.test(got.text)) datedRows++;
 
     if (!got.correct) {
       sawWrong++;
@@ -92,40 +96,19 @@ for (const w of [430, 1360]) {
   ok('exercised a wrong answer', sawWrong > 0, 'none seen');
   ok('exercised a confident correct answer', sawRight > 0, 'none seen');
   ok('exercised an unsure correct answer', sawUnsure > 0, 'none seen');
-  // A card with history: SM-2 returns it on the same day for Hard, Good and
-  // Easy (a passing grade moves only the ease), so the shared date must be
-  // stated once in the hint and only Again may carry its own line.
-  await p.evaluate(() => {
-    const K = 'acqbench.v3';
-    const st = JSON.parse(localStorage.getItem(K));
-    st.srs = { 'sc-frag': { id: 'sc-frag', n: 3, ef: 2.5, interval: 12, due: Date.now() - 864e5,
-                            lapses: 0, streak: 2, reps: 3, suspended: false, lastGrade: 4,
-                            lastReview: Date.now() - 864e5 } };
-    localStorage.setItem(K, JSON.stringify(st));
-  });
-  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
-  await p.click('#mainnav button[data-go="learn"]'); await p.waitForTimeout(350);
-  await p.click('#startsession'); await p.waitForTimeout(450);
-  await p.click('#qcard [data-conf="certain"]'); await p.waitForTimeout(140);
-  const picked = await p.evaluate(() => {
-    const o = [...document.querySelectorAll('.choice')];
-    const i = o.findIndex((x) => /Customer fragmentation/i.test(x.innerText));
-    if (i >= 0) o[i].click();
-    return i;
-  });
-  await p.waitForTimeout(380);
-  const mature = await p.evaluate(() => {
-    const g = document.querySelector('.grades');
-    return { hint: g.querySelector('.ghint').textContent,
-             spans: [...g.querySelectorAll('button')].map((x) => !!x.querySelector('span')),
-             miss: !!document.querySelector('.feedback.miss') };
-  });
-  ok('mature card: the due review is the one under test', picked >= 0 && !mature.miss, 'picked ' + picked);
-  ok('mature card: only Again carries its own date',
-     mature.spans.length === 4 && mature.spans[0] === true && mature.spans.slice(1).every((x) => !x),
-     JSON.stringify(mature.spans));
-  ok('mature card: the hint names the shared return date',
-     /brings this back in /.test(mature.hint), mature.hint);
+  ok('no return date is quoted after any individual question', datedRows === 0, datedRows + ' grading rows quoted a date');
+
+  // The session-end card carries it instead.
+  let guard = 0;
+  while (guard++ < 120 && !(await p.$('.sessiondone'))) {
+    if (await p.$('#qcard .choices')) await p.click('#qcard [data-opt="0"]');
+    else if (await p.$('#clozein:not([disabled])')) { await p.fill('#clozein', 'x'); await p.click('#submitcloze'); }
+    await p.waitForTimeout(130);
+    if ((await p.$$('[data-grade]')).length) { await p.click('.grades button:last-child'); await p.waitForTimeout(140); }
+  }
+  const done = (await p.textContent('.sessiondone')) || '';
+  ok('the session-end card names a return date', /Come back (tomorrow|in \d+ (days|weeks|months))/.test(done), done.slice(0, 120));
+  ok('the session-end card says how many items will be due', /item/.test(done), done.slice(0, 120));
 
   ok('no runtime errors', errs.length === 0, errs[0]);
   await ctx.close();
