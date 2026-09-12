@@ -231,9 +231,46 @@ function feedbackBlock(item) {
     '<div>' + md(item.why) + '</div>' +
     (confidentWrong ? '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">You were certain and it was wrong. That is the most correctable kind of error — and the most likely to come back, so this one returns later in the session and again sooner than usual.</div>' : '') +
     '</div>' +
-    '<div class="grades">' +
-      '<button data-grade="0">Again</button><button data-grade="3">Hard</button>' +
-      '<button data-grade="4">Good</button><button data-grade="5">Easy</button>' +
+    gradeButtons();
+}
+
+function whenLabel(d) {
+  if (d <= 1) return 'tomorrow';
+  if (d < 14) return 'in ' + d + ' days';
+  if (d < 60) return 'in ' + Math.round(d / 7) + ' weeks';
+  return 'in ' + Math.round(d / 30) + ' months';
+}
+
+/**
+ * Only ever offer a rating the scheduler will honour.
+ *
+ * `grade()` forces a missed item to Again, and caps an unsure-but-correct
+ * answer at Hard. The old block printed all four buttons regardless, so on a
+ * wrong answer every button did exactly the same thing — the UI asked a
+ * question and then threw the answer away, which is unreadable rather than
+ * merely redundant. Each button now states its own consequence in days,
+ * because the effect of a rating is on timing, not on a score.
+ */
+function gradeButtons() {
+  if (!session.correct) {
+    return '<div class="grades g1">' +
+      '<button data-grade="' + GRADE.AGAIN + '"><b>Got it — keep going</b>' +
+      '<span>this one comes back before the session ends</span></button>' +
+      '</div>';
+  }
+
+  // Only the ratings the scheduler will honour: grade() caps an unsure-but-
+  // correct answer at Hard, so Good and Easy are not offered there.
+  const opts = session.confidence === 'unsure'
+    ? [[GRADE.AGAIN, 'Still shaky'], [GRADE.HARD, 'Right, but a struggle']]
+    : [[GRADE.AGAIN, 'Still shaky'], [GRADE.HARD, 'A struggle'],
+       [GRADE.GOOD, 'Knew it'], [GRADE.EASY, 'Instantly']];
+
+  return '<div class="grades g' + opts.length + '">' +
+    '<span class="ghint">How did recalling that feel? It sets how soon this one comes back.</span>' +
+    opts.map(function (o) {
+      return '<button data-grade="' + o[0] + '"><b>' + o[1] + '</b></button>';
+    }).join('') +
     '</div>';
 }
 
@@ -256,7 +293,7 @@ function grade(item, q) {
   let g = q;
   if (!session.correct) g = GRADE.AGAIN;
   else if (session.confidence === 'unsure') g = Math.min(q, GRADE.HARD);
-  else g = q || autoGrade(true, latency, 6000, session.confidence);
+  else g = q == null ? autoGrade(true, latency, 6000, session.confidence) : q;
 
   state.srs[item.id] = review(state.srs[item.id] || newCard(item.id), g, Date.now(), { confidentWrong });
   state.reviewLog.push({
@@ -294,7 +331,8 @@ function renderDone(root) {
   root.innerHTML = '<div class="card sessiondone">' +
     '<div class="big">Session complete</div>' +
     '<p style="color:var(--tx2);max-width:46ch;margin:0 auto">' + n + ' retrievals. Projected to still hold <b style="color:var(--tx)">' + f.held + ' of ' + f.total + '</b> concepts at 90 days.</p>' +
-    '<p class="tiny" style="margin-top:18px">Next session: ' + (when === 1 ? 'tomorrow' : 'in ' + when + ' days') + ' &middot; about ' + Math.max(1, dueThen) + ' items</p>' +
+    '<div class="comeback"><div class="cb-k">Come back ' + whenLabel(when) + '</div>' +
+      '<div class="cb-v">About ' + Math.max(1, dueThen) + ' item' + (dueThen === 1 ? '' : 's') + ' will be due. Coming back then is the part that turns this into retention — the gap is doing the work, not the session you just finished.</div></div>' +
     '<div class="btnrow" style="justify-content:center"><button class="btn ghost sm" id="backtracks">Back to tracks</button></div></div>';
   $('#backtracks').onclick = () => { view = { mode: 'tracks' }; renderLearn(); };
 }

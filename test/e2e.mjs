@@ -94,9 +94,14 @@ await p.click('[data-conf="certain"]'); await p.waitForTimeout(150);
 await p.click('.choice:nth-child(1)'); await p.waitForTimeout(300);
 ok('correct answer revealed immediately', (await p.$$('.choice.right')).length === 1);
 ok('explanation given, not just right/wrong', (await T('.feedback')).length > 80);
-ok('grade buttons offered', (await p.$$('[data-grade]')).length === 4);
+// Only the ratings the scheduler will act on are offered: four on a confident
+// correct answer, one on a miss (grade() forces a miss to Again regardless).
+// test/e2e-learn.mjs covers that contract across all three paths.
+const wasRight = (await p.$$('.feedback.miss')).length === 0;
+ok('grade buttons match what the scheduler will honour',
+   (await p.$$('[data-grade]')).length === (wasRight ? 4 : 1), 'correct=' + wasRight);
 const srsBefore = await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('acqbench.v3')).srs).length);
-await p.click('[data-grade="4"]'); await p.waitForTimeout(350);
+await p.click('.grades button:last-child'); await p.waitForTimeout(350);
 const srsAfter = await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('acqbench.v3')).srs).length);
 ok('review is recorded to the schedule', srsAfter === srsBefore + 1, srsBefore + ' -> ' + srsAfter);
 const logged = await p.evaluate(() => JSON.parse(localStorage.getItem('acqbench.v3')).reviewLog.length);
@@ -116,10 +121,11 @@ while (guard++ < 60) {
     await p.click('.choice:nth-child(2)');
   }
   await p.waitForTimeout(120);
-  if ((await p.$$('[data-grade]')).length) { await p.click('[data-grade="4"]'); await p.waitForTimeout(140); }
+  // Last button, whichever set is offered — a miss shows only one.
+  if ((await p.$$('[data-grade]')).length) { await p.click('.grades button:last-child'); await p.waitForTimeout(140); }
 }
 ok('session reaches a completion card', await p.isVisible('.sessiondone'), 'after ' + guard + ' steps');
-ok('ends with next-session guidance, not a score', (await T('.sessiondone')).includes('Next session'));
+ok('ends with return-date guidance, not a score', (await T('.sessiondone')).includes('Come back'));
 ok('completion reports a retention forecast', (await T('.sessiondone')).includes('90 days'));
 
 console.log('— persistence —');
