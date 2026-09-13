@@ -23,6 +23,11 @@ export function resetLearnView() { session = null; view = { mode: 'tracks', trac
 
 export function renderLearn() {
   const root = $('#learnroot');
+  // The panel's static hero is a 267px-tall standing header. During a quiz it costs
+  // nothing and, on a phone, it pushed the first answer below the fold on every item.
+  // CSS hides it at <=720px while this class is on; the class is the only signal the
+  // stylesheet has that a session is running.
+  $('#p-learn').classList.toggle('insession', !!session);
   if (session) return renderSession(root);
   if (view.mode === 'lesson') return renderLesson(root);
   if (view.mode === 'track') return renderTrack(root);
@@ -321,6 +326,9 @@ function grade(item, q) {
 }
 
 function renderDone(root) {
+  // renderDone clears `session` below, so the toggle at the top of renderLearn() has
+  // already run for the last time with a session in hand — the class has to come off here.
+  $('#p-learn').classList.remove('insession');
   const n = session.answered;
   const nextDue = ITEMS.map((i) => state.srs[i.id]).filter((c) => c && c.due)
     .sort((a, b) => a.due - b.due)[0];

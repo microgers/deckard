@@ -53,3 +53,24 @@ export function keepInPlace(sel, render) {
   const delta = b.getBoundingClientRect().top - before;
   if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
 }
+
+/**
+ * Mark the wide containers (.xs tables, .chart) that are actually scrolled out
+ * of their box, so the phone stylesheet can draw a scroll rail on them.
+ *
+ * macOS and iOS draw overlay scrollbars: they reserve no layout space and paint
+ * nothing until a drag is already under way, so a nine-column table looks like a
+ * table that ends at "Tax". A styled ::-webkit-scrollbar does not bring the space
+ * back on those platforms either — the rail has to be part of the element's own
+ * box. CSS cannot ask whether a box overflows, so the question is answered here
+ * and the answer is carried as a class. Called after the renders that rebuild
+ * these nodes, and again on resize, since a rotation changes the answer.
+ */
+export function markScrollers() {
+  $$('.xs,.chart').forEach((e) => e.classList.toggle('scrolls', e.scrollWidth > e.clientWidth + 1));
+}
+let scrollTick = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(scrollTick);
+  scrollTick = requestAnimationFrame(markScrollers);
+});

@@ -1,5 +1,5 @@
 import './styles.css';
-import { $, $$ } from './ui.js';
+import { $, $$, markScrollers } from './ui.js';
 import { state, loadLocal, saveLocal, connectCloud, disconnectCloud, activeCompany, ensureCompany } from './store.js';
 import { isConfigured, signInWithGoogle, signOutUser, watchAuth } from './firebase.js';
 import { initModal, openModal, closeModal } from './modal.js';
@@ -23,6 +23,9 @@ function go(id) {
   state.prefs.panel = id; saveLocal();
   if (id === 'learn') { resetLearnView(); renderLearn(); }
   if (id === 'report') renderReport();
+  // A hidden panel measures zero, so the views' own calls cannot tell whether their
+  // tables overflow until the panel is on screen. Re-ask once it is.
+  markScrollers();
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 

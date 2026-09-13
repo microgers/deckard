@@ -1,4 +1,4 @@
-import { $, $$, el, esc, money, dollars, pct, keepInPlace } from '../ui.js';
+import { $, $$, el, esc, money, dollars, pct, keepInPlace, markScrollers } from '../ui.js';
 import { model } from '../engine.js';
 import { FIELDS, DEF } from '../data/fields.js';
 import { activeCompany, touchCompany } from '../store.js';
@@ -141,9 +141,14 @@ function renderResult(m){
   else if(!r.ok&&r.reason==="ABOVE_RANGE") warn='<div class="note" style="margin-top:18px"><b>The return exceeds the model&rsquo;s +1000% scan range.</b> That almost always means the equity cheque has been driven near zero by the financing assumptions. An enormous IRR on a trivial amount of capital is a rounding artefact, not an opportunity &mdash; look at MOIC and at the dollars.</div>';
 
   var rows=m.rows.map(function(x){
+    // The coverage-after-capex figure lived only in the title attribute, which a touch
+    // device has no way to reach. The same already-computed value is written into the
+    // cell as .tt as well; CSS hides it everywhere except the phone breakpoint, so the
+    // desktop cell still renders the single lender-basis number it always did.
+    var cash=x.dscrCash!=null?x.dscrCash.toFixed(2)+"×":"—";
     return '<tr><td>Year '+x.y+'</td><td>'+dollars(x.ebitda)+'</td><td>'+dollars(-x.capex)+'</td><td>'+dollars(-x.interest)+'</td><td>'+dollars(-x.principal)+'</td><td>'+dollars(-x.taxes)+'</td>'+
       '<td class="'+(x.fcfe<0?"neg":"")+'"><b>'+dollars(x.fcfe)+'</b></td>'+
-      '<td class="'+(x.dscr!=null&&x.dscr<1.25?"neg":"")+'" title="After capex and tax: '+(x.dscrCash!=null?x.dscrCash.toFixed(2)+"×":"—")+'">'+(x.dscr!=null?x.dscr.toFixed(2)+"&times;":"—")+'</td><td>'+dollars(x.debt)+'</td></tr>';
+      '<td class="'+(x.dscr!=null&&x.dscr<1.25?"neg":"")+'" title="After capex and tax: '+cash+'">'+(x.dscr!=null?x.dscr.toFixed(2)+"&times;":"—")+'<span class="tt">'+cash+'</span></td><td>'+dollars(x.debt)+'</td></tr>';
   }).join("");
   var table='<table><thead><tr><th>Period</th><th>EBITDA</th><th>Capex</th><th>Interest</th><th>Principal</th><th>Tax</th><th>Cash to equity</th><th>DSCR</th><th>Debt left</th></tr></thead><tbody>'+rows+
    '<tr style="background:var(--surf)"><td><b>Exit (Y'+P.holdYears+')</b></td><td>'+dollars(m.exitEbitda)+'</td><td colspan="4" style="text-align:left;color:var(--tx3)">&times; '+P.exitMultiple.toFixed(1)+' = '+dollars(m.exitEV)+' less '+dollars(m.remaining)+' debt</td><td><b>'+dollars(m.exitEquity)+'</b></td><td></td><td>&mdash;</td></tr></tbody></table>';
@@ -192,6 +197,7 @@ function renderResult(m){
    '<p class="tiny" style="margin:-4px 0 14px;max-width:68ch">Read the columns against the rows. In most small-cap holds, half a turn on the exit outweighs a year of margin work &mdash; which is what makes the exit multiple the riskiest line in the model, and the one you have least control over. The D&amp;A shield is scaled with price across the grid so each cell stays internally consistent.</p>'+
    '<div class="xs">'+sensGrid()+'</div>'+
    '<div class="note" style="margin-top:18px"><b>Stress it before you trust it.</b> Set growth to &minus;5%, push the exit multiple a full turn below entry, and add a year to the hold. If the deal still clears its debt service, you have a deal. If it needs growth and expansion to work, you have a hope.</div>';
+  markScrollers();
 }
 
 export { renderInputs, runModel, renderResult, cashChart, sensGrid };
