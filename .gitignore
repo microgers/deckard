@@ -55,3 +55,6 @@ DIAGNOSE.txt
 firebase-debug.log
 .fuse_hidden*
 BUILD-LOG.txt
+
+# Editor/preview config, not part of the app
+.claude/

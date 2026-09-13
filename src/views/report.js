@@ -7,7 +7,7 @@
  * It computes from the company's own record, never from the Model panel's
  * working copy, so opening a report never disturbs what you were editing.
  */
-import { $, el, esc, money, dollars, pct } from '../ui.js';
+import { $, el, esc, money, dollars, pct, markScrollers } from '../ui.js';
 import { model } from '../engine.js';
 import { state, activeCompany } from '../store.js';
 import { CRIT_A, CRIT_B, ALL_CRIT, aggregate, hardStops, PASS_MARK } from '../data/criteria.js';
@@ -152,6 +152,7 @@ export function renderReport() {
     '<div class="note" style="margin-top:20px"><b>A saved snapshot, not a valuation.</b> Every number here is recomputed from the assumptions you entered for this company. Change them in the Model and this report moves with them.</div>';
 
   root.innerHTML = h;
+  markScrollers();
   var back = $('#rpback'); if (back) back.onclick = function () { nav('home'); };
   var bdd = $('#rpdd'); if (bdd) bdd.onclick = function () { nav('dd'); };
   var birr = $('#rpirr'); if (birr) birr.onclick = function () { nav('irr'); };
