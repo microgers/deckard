@@ -6,15 +6,16 @@ import { initModal, openModal, closeModal } from './modal.js';
 import { DDSAMPLE, ALL_CRIT } from './data/criteria.js';
 import { SAMPLE } from './data/questions.js';
 import { initAssess, renderQ, scoreA } from './views/assess.js';
-import { initDiamond, renderDD, scoreD } from './views/diamond.js';
-import { initModel, renderInputs, runModel, syncPfromProject, syncEtype, resetModel, setEtype } from './views/model.js';
+import { initDiamond, renderDD, scoreD, renderDdConfirm } from './views/diamond.js';
+import { initModel, renderInputs, runModel, syncPfromProject, syncEtype, resetModel, setEtype, renderIrrConfirm } from './views/model.js';
 import { initHome, renderHome } from './views/home.js';
 import { initRail, renderProjects } from './views/rail.js';
 import { initReport, renderReport } from './views/report.js';
+import { initHub, renderHub } from './views/hub.js';
 import { renderLearn, resetLearnView } from './views/learn.js';
 import { touchCompany } from './store.js';
 
-const PANELS = ['home', 'report', 'assess', 'dd', 'irr', 'learn', 'notes'];
+const PANELS = ['home', 'hub', 'report', 'assess', 'dd', 'irr', 'learn', 'notes'];
 
 function go(id) {
   if (!PANELS.includes(id)) id = 'home';
@@ -22,6 +23,7 @@ function go(id) {
   $$('#mainnav button').forEach((b) => b.setAttribute('aria-current', b.dataset.go === id ? 'true' : 'false'));
   state.prefs.panel = id; saveLocal();
   if (id === 'learn') { resetLearnView(); renderLearn(); }
+  if (id === 'hub') renderHub();
   if (id === 'report') renderReport();
   // A hidden panel measures zero, so the views' own calls cannot tell whether their
   // tables overflow until the panel is on screen. Re-ask once it is.
@@ -29,7 +31,11 @@ function go(id) {
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function refreshDependents() { renderProjects(); renderHome(); if (state.prefs.panel === 'report') renderReport(); }
+function refreshDependents() {
+  renderProjects(); renderHome();
+  if (state.prefs.panel === 'hub') renderHub();
+  if (state.prefs.panel === 'report') renderReport();
+}
 
 function renderAll() {
   syncPfromProject();
@@ -39,8 +45,13 @@ function renderAll() {
   renderQ(); scoreA();
   renderDD(); scoreD();
   syncEtype(); renderInputs(); runModel();
+  // The two end-of-stage bars. runModel() already refreshes the model's via its
+  // onChange, but renderDD/scoreD do not call one — and switching company has to
+  // move both, so both are asked explicitly here.
+  renderDdConfirm(); renderIrrConfirm();
   renderProjects(); renderHome();
   if (state.prefs.panel === 'learn') renderLearn();
+  if (state.prefs.panel === 'hub') renderHub();
   if (state.prefs.panel === 'report') renderReport();
 }
 
@@ -113,12 +124,18 @@ function boot() {
 
   initHome({ nav: go });
   initReport({ nav: go });
-  initRail({ onChange: renderAll, onOpen: () => go('report') });
+  initHub({ nav: go });
+  // A company opens at its hub, not at its report: the report is one stage of the
+  // funnel now, reached from the hub, not the thing a company IS.
+  // nav is for the rows' Resume buttons, which jump straight to a stage. They
+  // cannot proxy a #mainnav click the way other views do: there is no [data-go]
+  // button for the report.
+  initRail({ onChange: renderAll, onOpen: () => go('hub'), nav: go });
   // Views refresh their DEPENDENTS (the rail and the home summary), never the
   // whole tree — re-entering renderAll from inside a view's own render recurses.
   initAssess({ onChange: refreshDependents, queueProfile: () => saveLocal() });
-  initDiamond({ onChange: refreshDependents });
-  initModel({ onChange: refreshDependents });
+  initDiamond({ onChange: refreshDependents, nav: go });
+  initModel({ onChange: refreshDependents, nav: go });
 
   $$('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   $('#themebtn').addEventListener('click', () => {

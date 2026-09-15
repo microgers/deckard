@@ -9,6 +9,7 @@
  */
 import { $, el, esc, money, dollars, pct, markScrollers } from '../ui.js';
 import { model } from '../engine.js';
+import { stageProgress } from '../progress.js';
 import { state, activeCompany } from '../store.js';
 import { CRIT_A, CRIT_B, ALL_CRIT, aggregate, hardStops, PASS_MARK } from '../data/criteria.js';
 import { diamondSVG } from './diamond.js';
@@ -51,6 +52,12 @@ export function renderReport() {
 
   var scored = Object.keys(p.d).length;
   var complete = scored === ALL_CRIT.length;
+  // Every figure the engine produces is derived from p.i, which is pre-filled from
+  // DEF the moment a company is born — so the model renders just as confidently for
+  // a company nobody has opened as for one that was worked for an hour. Gating on
+  // the user's own confirmation is the only thing that separates the two.
+  var modelRun = stageProgress(p).model.done;
+  var full = complete && modelRun;
   var A = complete ? aggregate(CRIT_A, p.d) : null;
   var B = complete ? aggregate(CRIT_B, p.d) : null;
   var stops = hardStops(p.d);
@@ -76,12 +83,20 @@ export function renderReport() {
     '<div class="btnrow" style="margin:0 0 14px"><button class="btn ghost sm" id="rpback">&larr; All companies</button></div>' +
     '<div class="kicker"><span class="dotb"></span>Company report' + (updated ? ' &middot; updated ' + esc(updated) : '') + '</div>' +
     '<h1 class="big" style="margin-bottom:10px">' + esc(p.name) + '</h1>' +
-    '<div class="heroline"><span class="bignum ' + irrCls + '">' + irrTxt + '</span>' +
-    '<span class="delta">modelled equity IRR' + (complete ? ' &middot; diamonds ' + Math.round(A) + ' / ' + Math.round(B) : ' &middot; ' + scored + ' of ' + ALL_CRIT.length + ' criteria scored') + '</span></div>' +
+    '<div class="heroline">' +
+    (modelRun ? '<span class="bignum ' + irrCls + '">' + irrTxt + '</span>' : '<span class="bignum">&mdash;</span>') +
+    '<span class="delta">' + (modelRun ? 'modelled equity IRR' : 'deal model not run yet') +
+    (complete ? ' &middot; diamonds ' + Math.round(A) + ' / ' + Math.round(B) : ' &middot; ' + scored + ' of ' + ALL_CRIT.length + ' criteria scored') + '</span></div>' +
+    '<div style="margin-top:12px"><span class="pill ' + (full ? 'ok' : 'mid') + '">' + (full ? 'Complete' : 'Partial') + '</span></div>' +
     '</div>';
 
   /* ── headline numbers ───────────────────────────────────────────────── */
-  if (m) {
+  if (!modelRun) {
+    h += '<div class="note"><b>The deal model has not been run for this company.</b> ' +
+      'Every figure it would show is the worked example\'s defaults, not this business. ' +
+      'Open the model, set the assumptions, and confirm them.' +
+      '<div class="btnrow" style="margin-top:12px"><button class="btn sm" id="rprunmodel">Run the deal model</button></div></div>';
+  } else if (m) {
     h += '<div class="card"><div class="statrow">' +
       '<div class="st"><div class="k">MOIC</div><div class="v">' + (m.moic != null && isFinite(m.moic) ? m.moic.toFixed(2) + '&times;' : '—') + '</div><div class="s">' + dollars(m.inflow) + ' back on ' + dollars(m.outflow) + '</div></div>' +
       '<div class="st"><div class="k">Year-1 DSCR</div><div class="v ' + dCls + '">' + (y1Dscr != null ? y1Dscr.toFixed(2) + '&times;' : '—') + '</div><div class="s">' + (y1Dscr == null ? 'no debt' : y1Dscr < 1.25 ? 'Below the 1.25&times; threshold' : 'Clears the 1.25&times; threshold') + '</div></div>' +
@@ -121,7 +136,7 @@ export function renderReport() {
   h += '<div class="sectitle">Diamond II &mdash; the deal</div>' + critTable(CRIT_B, p.d);
 
   /* ── deal model ─────────────────────────────────────────────────────── */
-  if (m) {
+  if (m && modelRun) {
     h += '<div class="sectitle">Sources &amp; uses</div>' +
       '<div class="xs"><table><tbody>' +
       '<tr><td>Purchase price</td><td style="text-align:right"><b>' + dollars(m.price) + '</b></td></tr>' +
@@ -156,4 +171,5 @@ export function renderReport() {
   var back = $('#rpback'); if (back) back.onclick = function () { nav('home'); };
   var bdd = $('#rpdd'); if (bdd) bdd.onclick = function () { nav('dd'); };
   var birr = $('#rpirr'); if (birr) birr.onclick = function () { nav('irr'); };
+  var brun = $('#rprunmodel'); if (brun) brun.onclick = function () { nav('irr'); };
 }

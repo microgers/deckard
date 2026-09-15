@@ -1,16 +1,90 @@
 import { $, $$, el, esc, money, dollars, pct, keepInPlace, markScrollers } from '../ui.js';
 import { model } from '../engine.js';
 import { FIELDS, DEF } from '../data/fields.js';
-import { activeCompany, touchCompany } from '../store.js';
+import { activeCompany, touchCompany, markTouched, clearProgress, confirmModel } from '../store.js';
+import { stageProgress } from '../progress.js';
 
-let onChange = () => {};
-export function initModel(opts = {}) { onChange = opts.onChange || onChange; }
+let nav = () => {};
+let notify = () => {};
+export function initModel(opts = {}) { notify = opts.onChange || notify; nav = opts.nav || nav; }
+/**
+ * runModel() already ends in onChange() on every path, including the error
+ * paths. Composing the end-of-stage bar INTO that call is how the live
+ * "N of 18 reviewed" figure follows an edit without any input handler having
+ * to know the bar is there.
+ */
+function onChange() { renderIrrConfirm(); notify(); }
+
+/**
+ * The foot of the Model: the explicit act that finishes the stage.
+ *
+ * It has to be an act, not a threshold. `i` is pre-filled from DEF the moment a
+ * company is born, so accepting a default is a real review that leaves no trace
+ * — any "edited N of 18" rule would leave the stage permanently uncompletable
+ * for a buyer who genuinely agrees with a 25% tax rate. The count beside the
+ * button is therefore INFORMATIONAL: it shows what the confirmation is being
+ * asserted on top of, and never decides anything by itself.
+ *
+ * "Reviewed", never "changed" — dragging a slider and putting it back is still
+ * a review. The denominator is the 18 ALL_FIELDS inputs; `etype` is recorded as
+ * engagement but excluded from the count, so this can never read "18 of 19".
+ */
+export function renderIrrConfirm(){
+  var w=$("#irrconfirm"); if(!w) return;
+  var p=activeCompany();
+  // No company means no hub to return to, and no progress to assert.
+  if(!p){ w.innerHTML=""; return; }
+  var sp=stageProgress(p), name=esc(p.name);
+  var h='<div class="btnrow stagebar">'+
+    // The measure is capped on the INNER span, not the paragraph: the paragraph
+    // itself must stay a full-width flex line so the two buttons sit together on
+    // the row below it, the way the Diamond's bar already reads.
+    '<p class="tiny stagenote"><span>Confirming records that you have been through these assumptions &mdash; '+
+      'including the ones you left alone, which is why the count beside it cannot decide this for you.</span></p>'+
+    '<button class="btn ghost sm" id="irrback">&larr; Back to '+name+'</button>';
+  if(sp.model.done){
+    h+='<span class="pill ok stagepill">&#10003; Reviewed</span>'+
+       '<button class="btn ghost sm" id="irrreopen">Re-open</button>';
+  }else{
+    h+='<button class="btn stagego" id="irrdone">I&rsquo;ve reviewed these assumptions</button>';
+  }
+  h+='<span class="stagecount">'+sp.model.n+' of '+sp.model.of+' reviewed</span></div>';
+  w.innerHTML=h;
+  // Resolve the company inside each handler, never from this render's closure:
+  // the rail can make a different company active while this panel is on screen.
+  var back=$("#irrback"); if(back) back.onclick=function(){ nav("hub"); };
+  var go=$("#irrdone"); if(go) go.onclick=function(){
+    var c=activeCompany(); if(!c) return;
+    confirmModel(c);        // stamps prog.modelDone and saves
+    touchCompany();         // and dates the company by the act of finishing it
+    onChange();             // bar to its Reviewed state, rail and hub to done
+    nav("hub");
+  };
+  var re=$("#irrreopen"); if(re) re.onclick=function(){
+    var c=activeCompany(); if(!c||!c.prog) return;
+    // Only modelDone. The touched keys are a record of what the user did, and
+    // re-opening the stage does not un-review the fields they went through.
+    c.prog.modelDone=0; touchCompany(); onChange();
+  };
+}
 
 export let P = { ...DEF };
 let lastPrice = 4800000;
 
 export function syncPfromProject() { const p = activeCompany(); P = p ? p.i : { ...DEF }; }
 function persist() { const p = activeCompany(); if (p) p.i = P; touchCompany(); }
+/**
+ * A USER edit. Machine writes keep plain persist(): the standby clamp in
+ * runModel() fires on a bare page load, and marking a field "reviewed" because
+ * the page opened is exactly the lie the progress count must not tell.
+ *
+ * The company is resolved here, inside the handler — never captured when the
+ * inputs were rendered — because P aliases whichever company was active then,
+ * and the active company can change under a rendered field.
+ *
+ * markTouched first, so the saveLocal inside persist() carries the new key.
+ */
+function persistEdit(k) { const p = activeCompany(); if (p) markTouched(p, k); persist(); }
 
 function disp(f, v) {
   if (f.kind === 'pct') return String(+(v * 100).toFixed(4));
@@ -27,8 +101,13 @@ function parseF(f, s) {
 export function syncEtype() {
   $$('#etype button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.t === (P.etype || 'ebitda') ? 'true' : 'false'));
 }
-export function resetModel() { P = { ...DEF }; persist(); renderInputs(); runModel(); syncEtype(); }
-export function setEtype(t) { P.etype = t; syncEtype(); persist(); runModel(); }
+export function resetModel() {
+  // Progress dies with the data that earned it — letting "18 of 18 reviewed"
+  // survive a wipe back to the defaults is the definition of a lying count.
+  P = { ...DEF }; clearProgress(activeCompany()); persist();
+  renderInputs(); runModel(); syncEtype();
+}
+export function setEtype(t) { P.etype = t; syncEtype(); persistEdit('etype'); runModel(); }
 
 function renderInputs(){
   Object.keys(FIELDS).forEach(function(g){
@@ -42,9 +121,9 @@ function renderInputs(){
       w.appendChild(d);
       var num=$("#in-"+f.k,d), rg=$("#rg-"+f.k,d);
       var hold=function(fn){ keepInPlace('#in-'+f.k, fn); };
-      num.oninput=function(){ var v=parseF(f,num.value); if(v==null)return; P[f.k]=v; rg.value=v; persist(); hold(runModel); };
+      num.oninput=function(){ var v=parseF(f,num.value); if(v==null)return; P[f.k]=v; rg.value=v; persistEdit(f.k); hold(runModel); };
       num.onblur=function(){ num.value=disp(f,P[f.k]); rg.value=P[f.k]; };
-      rg.oninput=function(){ P[f.k]=parseFloat(rg.value); num.value=disp(f,P[f.k]); persist(); hold(runModel); };
+      rg.oninput=function(){ P[f.k]=parseFloat(rg.value); num.value=disp(f,P[f.k]); persistEdit(f.k); hold(runModel); };
     });
   });
 }

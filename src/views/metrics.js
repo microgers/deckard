@@ -1,14 +1,33 @@
+/**
+ * The rail's and the home page's summary numbers for one company.
+ *
+ * THE IRR IS GATED ON prog.modelDone. `p.i` is pre-filled from DEF the moment a
+ * company is born, so engine.model() returns a perfectly confident IRR for a
+ * target nobody has looked at — verified live: a company created seconds
+ * earlier, with zero user input, rendered "63% IRR" in the rail. Printing that
+ * puts the app's own defaults into the user's mouth as a finding about their
+ * deal. The number appears only once the user has confirmed the model at the
+ * foot of #p-irr, which is the same fact the hub and the report use to say
+ * "not run yet". The diamond aggregates need no such gate: `p.d` holds a key
+ * only where a human pressed a scoring dot.
+ */
 import { model } from '../engine.js';
 import { CRIT_A, CRIT_B, ALL_CRIT, aggregate } from '../data/criteria.js';
+import { stageProgress } from '../progress.js';
 
 export function projMetrics(p){
-  if(!p) return {a:null,b:null,irr:null};
+  if(!p) return {a:null,b:null,irr:null,scored:0};
   var A=null,B=null,ir=null;
   if(Object.keys(p.d).length===ALL_CRIT.length){ A=aggregate(CRIT_A,p.d); B=aggregate(CRIT_B,p.d); }
-  try{ var m=model(p.i); if(!m.error&&m.irr.ok&&m.irr.unique) ir=m.irr.irr; }catch(e){}
+  if(stageProgress(p).model.done){
+    try{ var m=model(p.i); if(!m.error&&m.irr.ok&&m.irr.unique) ir=m.irr.irr; }catch(e){}
+  }
   return {a:A,b:B,irr:ir,scored:Object.keys(p.d).length};
 }
 function sparkFor(p){
+  // Same gate, same reason: a sparkline of a cash-flow curve nobody chose is a
+  // picture of DEF, drawn confidently enough to be mistaken for the deal.
+  if(!p||!stageProgress(p).model.done) return "";
   try{
     var m=model(p.i); if(m.error||!m.cfs||m.cfs.length<2) return "";
     var cum=[],run=0;

@@ -123,7 +123,24 @@ h1.big{font-size:clamp(30px,4vw,42px);letter-spacing:-.035em;font-weight:800}
 .railhead button{font-size:13px;font-weight:600;color:var(--brand)}
 .pitem{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 8px;font:inherit;
   border-radius:var(--r-sm);border-bottom:1px solid var(--line);transition:background .14s}
-.pitem:last-of-type{border-bottom:0}
+/* Each row is a PAIR of sibling buttons inside .prow — the row itself, and a
+   one-tap Resume that skips the hub and lands in whichever stage is next.
+   The separator is drawn by the two buttons, not by .prow, so the row's own
+   border can never double up with theirs. */
+/* No gap: both buttons draw the separator, and any space between them would cut
+   a notch out of the one line the list reads as. */
+.prow{display:flex;align-items:stretch}
+/* Square the two edges that meet, or each button's rounded corner pulls its own
+   border away from the join and nicks the separator. */
+.prow .pitem{flex:1 1 auto;min-width:0;border-top-right-radius:0;border-bottom-right-radius:0}
+.presume{flex:0 0 auto;display:flex;align-items:center;padding:0 10px;
+  font-size:12.5px;font-weight:600;color:var(--brand);white-space:nowrap;
+  border-radius:0 var(--r-sm) var(--r-sm) 0;border-bottom:1px solid var(--line);transition:background .14s}
+.presume:hover{background:var(--surf)}
+/* This used to be `.pitem:last-of-type`. Now that every .pitem is the only one of
+   its type inside its own .prow, that selector matches EVERY row and erases every
+   separator in the list. Scope it to the last ROW instead. */
+#plist .prow:last-child .pitem,#plist .prow:last-child .presume{border-bottom:0}
 .pitem:hover{background:var(--surf)}
 .pitem.active{background:var(--surf)}
 .pitem .pn{flex:1;min-width:0}
@@ -365,6 +382,10 @@ td .tt{display:none}
      header's right edge in, so the negative margin gives the padding back to the layout
      — .railhead is space-between, so only the button's own box changes. */
   .railhead button{min-height:44px;min-width:44px;padding:0 10px;margin-right:-10px}
+  /* Both halves of a rail row are tap targets. .pitem clears 44px on its own
+     content (two lines plus 13px padding); Resume is a single line of text, so
+     its floor has to be stated. */
+  .presume{min-height:44px;padding:0 12px}
   /* iOS auto-zooms any focused field below 16px (same reason as .clozein). */
   .txt{font-size:16px}
   /* 82vh is measured against the large viewport, so the dialog can end up taller than
@@ -564,4 +585,55 @@ td .tt{display:none}
      #learnroot. learn.js sets .insession only while a quiz is running, which is the only
      time this header is costing the learner the first answer. */
   #p-learn.insession > .hero{display:none}
+}
+
+/* ═══════════ company hub ═══════════ */
+/* Last in the file on purpose: every rule here is a single class, so anything that
+   had to win a specificity tie would lose it on source order elsewhere.
+   The stage rows reuse .gaterow wholesale — it is already a ~82px flex row, so the
+   44px mobile touch floor is met without a new rule, and the value stays inside the
+   row so it keeps .gaterow .gv rather than the unrelated 13px gauge .gv. */
+/* A company name is free text with a 60-character allowance, and nothing in it has to
+   contain a space. Without this one long token pushes the whole column sideways — the
+   same page-level h-scroll the report and the home hero still have. */
+.hubname,.hubop{overflow-wrap:anywhere}
+.hublist{margin-bottom:2px}
+.hubcontinue{margin-top:24px}
+/* The plain .btn is 43.8px tall at its default line-height — a rounding away from the
+   floor, and this is the page's primary action. Pin it. */
+.hubgo{min-height:44px}
+@media (max-width:720px){
+  /* One full-width primary action reads as the page's next step, and hands the thumb
+     the whole column instead of a pill floating at the left margin. */
+  .hubgo{flex:1 1 100%;text-align:center}
+}
+
+/* ═══════════ end-of-stage bars ═══════════ */
+/* The foot of #p-dd and #p-irr. Appended last in the file, like the hub block above,
+   so nothing here has to win a specificity tie it could lose on source order.
+   These bars sit BELOW every control e2e-anchor measures — their height changing as
+   a Done button appears must never move a scoring dot or an input. */
+.stagebar{align-items:center;border-top:1px solid var(--line);padding-top:20px;margin-top:30px}
+/* A company name is free text and need not contain a space; without this one long
+   token widens the button past the column and scrolls the whole page sideways. */
+.stagebar .btn{overflow-wrap:anywhere;max-width:100%;min-height:44px}
+/* The plain .btn is 43.8px at its default line-height — a rounding away from the
+   44px floor, and this is the stage's primary action. Pin it. */
+.stagebar .stagego{min-height:44px}
+.stagebar .stagepill{min-height:44px;padding:0 18px;font-size:13px}
+/* Informational, never load-bearing: this number reports what the confirmation is
+   asserted on top of, and decides nothing. Pushed to the far end so it reads as a
+   caption on the bar rather than a third button. */
+.stagebar .stagecount{margin-left:auto;font-size:13px;font-weight:600;color:var(--tx3)}
+/* Full-width so it sits above the row rather than competing with it for the line.
+   The 68ch measure has to be capped on the inner span instead: a max-width here
+   clamps the flex item's hypothetical size too, which lets the back button ride
+   up beside the paragraph and splits the two actions across two rows. */
+.stagebar .stagenote{flex:1 1 100%;margin:0 0 4px}
+.stagebar .stagenote span{display:block;max-width:68ch}
+@media (max-width:720px){
+  /* One full-width primary action reads as the stage's next step and hands the thumb
+     the whole column; the count then takes its own line instead of being squeezed. */
+  .stagebar .stagego{flex:1 1 100%;text-align:center}
+  .stagebar .stagecount{margin-left:0;flex:1 1 100%}
 }
