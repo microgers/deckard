@@ -1,14 +1,30 @@
 import { $, el, esc, pct } from '../ui.js';
 import { state, activeCompany } from '../store.js';
 import { projMetrics } from './metrics.js';
+import { stageProgress } from '../progress.js';
 import { scoreAssessment as assessScore } from '../data/questions.js';
 import { ALL_CRIT } from '../data/criteria.js';
 
 let nav = () => {};
 export function initHome(opts = {}) { nav = opts.nav || nav; }
 
+/**
+ * The home hero headlines the strongest thing the user has actually established
+ * about the active company, and nothing more.
+ *
+ *   model confirmed  → the modelled equity IRR
+ *   16/16 scored     → the two diamond scores
+ *   anything else    → no number at all
+ *
+ * projMetrics already withholds `irr` until prog.modelDone is set, so the first
+ * branch cannot fire on the model's own defaults — a brand-new company used to
+ * headline a DEF-derived 62.6% as if it were a finding about that business. The
+ * middle branch exists so gating the IRR does not also hide a diamond verdict
+ * the user really did earn.
+ */
 function renderHome(){
   var p=activeCompany(), mm=p?projMetrics(p):null, r=assessScore(state.assessment);
+  var sp=p?stageProgress(p):null;
   var h="";
   if(p&&mm&&mm.irr!=null){
     var cls=mm.irr<0?"down":mm.irr<0.15?"warn":"up";
@@ -18,6 +34,17 @@ function renderHome(){
       '<p class="lede" style="margin-top:14px">Three gates between you and owning a business, in the order that saves you money. '+
       (mm.a!=null&&mm.a>=70&&mm.b>=70?'This one clears both diamonds &mdash; price it, then get a letter of intent.':
        mm.a!=null?'Open Diamond to see where this one loses points.':'Score the sixteen criteria in Diamond to get a verdict on this one.')+'</p>';
+  } else if(p&&mm&&mm.a!=null){
+    // Diamond finished, model not run. The scores are real, so they lead; the
+    // lede names the one stage that is still missing rather than implying a
+    // number the user has not produced.
+    var dcls=(mm.a>=70&&mm.b>=70)?"up":"warn";
+    h='<div class="kicker"><span class="dotb"></span>'+esc(p.name)+'</div>'+
+      '<div class="heroline"><span class="bignum '+dcls+'">'+Math.round(mm.a)+' / '+Math.round(mm.b)+'</span>'+
+      '<span class="delta">diamond scores &middot; deal model not run yet</span></div>'+
+      '<p class="lede" style="margin-top:14px">'+
+      (mm.a>=70&&mm.b>=70?'This one clears both diamonds. Price it in the deal model to see what return is left at the asking price.'
+                         :'This one does not clear both diamonds. Open Diamond to see where it loses points before you spend time on the price.')+'</p>';
   } else if(p){
     h='<div class="kicker"><span class="dotb"></span>'+esc(p.name)+'</div>'+
       '<h1 class="big">Three gates between you and owning a business.</h1>'+
@@ -41,8 +68,11 @@ function renderHome(){
      v: (mm&&mm.a!=null)? Math.round(mm.a)+" / "+Math.round(mm.b) : (p? Object.keys(p.d).length+"/16":"—"),
      c: (mm&&mm.a!=null)? ((mm.a>=70&&mm.b>=70)?"var(--up)":"var(--warn)") : "var(--tx3)",
      ic:'<path d="M6.6 3 1.4 12l5.2 9 5.2-9Zm10.8 0-5.2 9 5.2 9 5.2-9Z"/>'},
+    // No IRR until the user has confirmed the model. Until then the row reports
+    // how far through the assumptions they are — the same count the rail and the
+    // hub show — which is a fact, where the DEF-derived percentage was not.
     {go:"irr",t:"IRR & Deal Model",s:"Does the price leave a return?",
-     v: (mm&&mm.irr!=null)? pct(mm.irr,0) : "—",
+     v: (mm&&mm.irr!=null)? pct(mm.irr,0) : (sp&&sp.model.n)? sp.model.n+"/"+sp.model.of : "—",
      c: (mm&&mm.irr!=null)? (mm.irr<0?"var(--down)":"var(--up)") : "var(--tx3)",
      ic:'<path d="M3.5 20h3.2v-6.8H3.5zm6.9 0h3.2V4h-3.2zM17.3 20h3.2v-10.6h-3.2z"/>'}
   ];

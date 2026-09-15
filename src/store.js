@@ -11,7 +11,7 @@
  * confirmed. Treating "absent from this snapshot" as "deleted" wipes everything
  * on a cold start before the server has caught up.
  */
-import { DEF } from './data/fields.js';
+import { DEF, ALL_FIELDS } from './data/fields.js';
 import { getAuthApi } from './firebase.js';
 import { uid } from './ui.js';
 
@@ -51,10 +51,114 @@ export function saveLocal() {
  */
 export const SEED_ID = 'seed-cascade';
 
+/* ── progress ──────────────────────────────────────────────────────────────
+ * `c.prog = { t: {key: ms}, modelDone: ms|0 }` records what the user has
+ * actually engaged with, which the data alone cannot tell us: `i` is pre-filled
+ * from DEF at birth, so every model input already holds a value and presence
+ * proves nothing.
+ *
+ * It lives INSIDE the company document, deliberately:
+ *   - not in a side collection keyed by company id, because deleteCompany()
+ *     calls ensureCompany(), which immediately re-creates the seed under its
+ *     FIXED id — a side table would reattach a dead company's progress to the
+ *     new one. Inside the document it dies with the tombstone and comes back
+ *     with the row.
+ *   - not inside `i`, because model.js aliases its module-level P to p.i BY
+ *     REFERENCE, the render loops walk Object.keys(FIELDS) over `i`, and
+ *     resetModel() replaces `i` wholesale.
+ *   - `t` is a plain object, never a Set (JSON.stringify renders a Set as {},
+ *     so it would vanish silently through saveLocal) and never an array (not
+ *     idempotent under repeated writes).
+ * No sync work is needed: saveLocal serializes state.companies wholesale and
+ * flush() writes the whole document, so prog rides along exactly as d and i do.
+ */
+const FIELD_KEYS = ALL_FIELDS.map((f) => f.k);
+
+/**
+ * Idempotent. Guarantees c.prog exists and is well-shaped, at EVERY ingress —
+ * boot, migration, creation and both cloud merges. Normalizing only at boot is
+ * a bug: a document written by an older device arrives through cloud.watch with
+ * prog undefined, and one missed guard downstream is a TypeError.
+ *
+ * For a company that has never had a prog, `t` is DERIVED by diffing i against
+ * DEF. The only writers of `i` are the user's own handlers, resetModel (which
+ * restores DEF exactly), migrateOld ({...DEF, ...p.i}) and runModel's standby
+ * clamp — and the clamp provably cannot move a value off DEF on its own, since
+ * DEF.sellerStandby is 0, the clamp fires only when standby >= term, and the
+ * sellerTerm field minimum is 1. So a differing value is proof a human put it
+ * there. The diff can only under-claim, which beats telling someone who spent
+ * an hour on this last week that they have not started.
+ *
+ * modelDone stays 0 for every pre-existing company: nobody pressed a button
+ * that did not exist yet, and inferring "finished" from a diff is exactly the
+ * inference the pre-fill makes untrustworthy.
+ *
+ * MUST NOT write c.updated or persist. Whole-document newest-wins merging means
+ * a device that merely opened the app would otherwise win the merge and stomp a
+ * real edit made elsewhere. prog reaches the cloud on the first real touch.
+ */
+export function normalizeCompany(c) {
+  if (!c || typeof c !== 'object') return c;
+  if (c.prog && typeof c.prog === 'object' && !Array.isArray(c.prog)) {
+    if (!c.prog.t || typeof c.prog.t !== 'object' || Array.isArray(c.prog.t)) c.prog.t = {};
+    if (typeof c.prog.modelDone !== 'number') c.prog.modelDone = 0;
+    return c;
+  }
+  const stamp = c.updated || c.created || Date.now();
+  const t = {};
+  let modelDone = 0;
+  if (c.id === SEED_ID) {
+    // The authored fixture, not an inference about a user. seed-cascade IS the
+    // worked example — #ireset reads "Reset to the worked example" — so a fresh
+    // install and an upgraded install must present it identically: finished.
+    FIELD_KEYS.forEach((k) => { t[k] = stamp; });
+    modelDone = stamp;
+  } else {
+    const i = c.i || {};
+    FIELD_KEYS.forEach((k) => {
+      if (Object.prototype.hasOwnProperty.call(i, k) && i[k] !== DEF[k]) t[k] = stamp;
+    });
+  }
+  c.prog = { t, modelDone };
+  return c;
+}
+
+/**
+ * Record a field the user edited. USER WRITES ONLY — never call this from a
+ * machine write. Verified live: planting {sellerStandby:9, sellerTerm:5} into
+ * localStorage and merely RELOADING clamps the value and bumps `updated` with
+ * zero user interaction, so hanging this off persist() would mark a field
+ * "reviewed" on every page load.
+ *
+ * Deliberately does not save: its callers already persist, and a slider drag
+ * fires per frame — the existing touchCompany → queuePush 700ms debounce is
+ * what collapses that into one write.
+ */
+export function markTouched(c, key) {
+  if (!c || !key) return;
+  normalizeCompany(c);
+  c.prog.t[key] = Date.now();
+}
+/** The model is finished only when the user says so — see progress.js. */
+export function confirmModel(c = activeCompany()) {
+  if (!c) return;
+  normalizeCompany(c);
+  c.prog.modelDone = Date.now();
+  touchCompany(c.id);
+}
+/** Wipe progress along with the data that earned it. Caller persists. */
+export function clearProgress(c) {
+  if (!c) return;
+  normalizeCompany(c);
+  c.prog.t = {}; c.prog.modelDone = 0;
+}
+
 export function newCompany(name = 'Untitled target', extra = {}) {
   const { id: fixedId, ...rest } = extra;
   const id = fixedId || uid();
   const c = { id, name, d: {}, i: { ...DEF }, created: Date.now(), updated: Date.now(), ...rest };
+  // After the spread, so an `extra` argument cannot inject a malformed prog.
+  normalizeCompany(c);
   state.companies[id] = c; state.active = id;
   saveLocal(); queuePush([id]);
   return c;
@@ -78,7 +182,17 @@ export function dedupeIdentical() {
   let removed = 0;
   groups.forEach((list) => {
     if (list.length < 2) return;
-    list.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    // The canon key above stays name + d + i: its whole job is collapsing the
+    // old non-deterministic seed, and folding prog into it would weaken that.
+    // The SURVIVOR, though, is progress-aware — the copies say the same thing
+    // about the company, so keep the one that remembers the most work: the
+    // fixed seed id, then a confirmed model, then the most reviewed fields,
+    // then the newest.
+    const tn = (c) => (c.prog && c.prog.t ? Object.keys(c.prog.t).length : 0);
+    list.sort((a, b) =>
+      ((b.prog && b.prog.modelDone > 0) ? 1 : 0) - ((a.prog && a.prog.modelDone > 0) ? 1 : 0) ||
+      tn(b) - tn(a) ||
+      (b.updated || 0) - (a.updated || 0));
     const keep = list.find((c) => c.id === SEED_ID) || list[0];
     list.forEach((c) => {
       if (c.id === keep.id) return;
@@ -95,7 +209,7 @@ export function activeCompany() { return state.companies[state.active] || null; 
 export function ensureCompany(seed) {
   if (Object.keys(state.companies).length) {
     if (!state.companies[state.active]) state.active = Object.keys(state.companies)[0];
-    return activeCompany();
+    return normalizeCompany(activeCompany());
   }
   return newCompany('Cascade Septic & Drain', seed ? { id: SEED_ID, d: { ...seed } } : { id: SEED_ID });
 }
@@ -180,7 +294,7 @@ export async function connectCloud(user) {
     remote.forEach((r) => {
       if (!r || !r.id || tombstones.has(r.id)) return;
       const l = state.companies[r.id];
-      if (!l || (r.updated || 0) > (l.updated || 0)) state.companies[r.id] = r;
+      if (!l || (r.updated || 0) > (l.updated || 0)) state.companies[r.id] = normalizeCompany(r);
     });
     if (profile) {
       if (!Object.keys(state.assessment).length && profile.assessment) state.assessment = profile.assessment;
@@ -200,7 +314,7 @@ export async function connectCloud(user) {
         if (tombstones.has(d.id)) { seen.add(d.id); return; }
         seen.add(d.id); knownRemote.add(d.id);
         const l = state.companies[d.id];
-        if (!l || (d.updated || 0) >= (l.updated || 0)) state.companies[d.id] = d;
+        if (!l || (d.updated || 0) >= (l.updated || 0)) state.companies[d.id] = normalizeCompany(d);
       });
       // Only honour a deletion the server has actually confirmed before, and
       // never act on an empty snapshot.
@@ -236,17 +350,17 @@ function migrateOld() {
     if (old.projects && Object.keys(old.projects).length) {
       Object.values(old.projects).forEach((p) => {
         if (!p || !p.id) return;
-        state.companies[p.id] = { id: p.id, name: p.name || 'Imported target',
+        state.companies[p.id] = normalizeCompany({ id: p.id, name: p.name || 'Imported target',
           d: p.d || {}, i: { ...DEF, ...(p.i || {}) },
-          created: p.created || Date.now(), updated: p.updated || Date.now() };
+          created: p.created || Date.now(), updated: p.updated || Date.now() });
       });
       if (old.active && state.companies[old.active]) state.active = old.active;
       return true;
     }
     if ((old.d && Object.keys(old.d).length) || old.i) {
       const id = uid();
-      state.companies[id] = { id, name: old.name || 'Imported target',
-        d: old.d || {}, i: { ...DEF, ...(old.i || {}) }, created: Date.now(), updated: Date.now() };
+      state.companies[id] = normalizeCompany({ id, name: old.name || 'Imported target',
+        d: old.d || {}, i: { ...DEF, ...(old.i || {}) }, created: Date.now(), updated: Date.now() });
       state.active = id;
       return true;
     }
@@ -262,6 +376,9 @@ export function loadLocal(seed) {
     assessment: l.assessment || {}, companies: l.companies || {}, active: l.active || null,
     srs: l.srs || {}, reviewLog: l.reviewLog || [], prefs: { ...state.prefs, ...(l.prefs || {}) }
   });
+  // Every company that enters state gets a prog, including ones saved by a
+  // build that had never heard of it.
+  Object.values(state.companies).forEach((c) => normalizeCompany(c));
   ensureCompany(seed);
   saveLocal();
 }

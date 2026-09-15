@@ -61,9 +61,18 @@ export function closeModal() {
   $('#modal').classList.remove('on'); $('#scrim').classList.remove('on'); open = false;
   unlock();
   window.scrollTo(0, scrollY);
-  // preventScroll, or focusing a trigger near the top of the page would undo the restore.
-  if (trigger && document.contains(trigger)) trigger.focus({ preventScroll: true });
+  // Deferred out of the current event, deliberately. Restoring focus synchronously is
+  // what made Enter-to-submit reopen the New-company dialog: the close ran inside the
+  // keydown, focus landed on the trigger BUTTON, and Blink then delivered the same
+  // keystroke's keypress to it and activated it. A keystroke in flight must never find
+  // a freshly focused button under it. Take a local copy first so a second close
+  // cannot steal focus back, and keep this after the scroll restore above.
+  const t = trigger;
   trigger = null;
+  requestAnimationFrame(() => {
+    // preventScroll, or focusing a trigger near the top of the page would undo the restore.
+    if (t && document.contains(t)) t.focus({ preventScroll: true });
+  });
 }
 export function initModal() {
   $('#scrim').addEventListener('click', closeModal);

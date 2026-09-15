@@ -55,6 +55,14 @@
     <div class="note" style="margin-top:22px"><b>An educational model, not advice.</b> It will not replace a quality-of-earnings report, a lender&rsquo;s credit memo, or a transaction attorney. Use it to decide what deserves those things.</div>
   </section>
 
+  <!-- ═══ COMPANY HUB ═══ -->
+  <!-- No #mainnav button, on purpose: the hub belongs to one company, and the nav is
+       global. It is reached from the rail, from "New company", and from the report —
+       the same buttonless-panel pattern #p-report already uses. -->
+  <section class="panel" id="p-hub">
+    <div id="hubroot"></div>
+  </section>
+
   <!-- ═══ COMPANY REPORT ═══ -->
   <section class="panel" id="p-report">
     <div id="reportroot"></div>
@@ -91,6 +99,10 @@
       <button class="btn ghost sm" id="dfill">Load the example scores</button>
       <button class="btn danger sm" id="dclear">Clear scores</button>
     </div>
+    <!-- End-of-stage bar. Last in the panel on purpose: e2e-anchor measures the
+         position of every .dots row to a 4px tolerance across re-renders, so
+         nothing this bar does to its own height may push a control above it. -->
+    <div id="ddconfirm"></div>
   </section>
 
   <!-- ═══ MODEL ═══ -->
@@ -124,6 +136,8 @@
       <div class="inpgrid" id="grpOps"></div>
     </div>
     <div class="btnrow"><button class="btn danger sm" id="ireset">Reset to the worked example</button></div>
+    <!-- See #ddconfirm. Below #ireset and below every #in-*/#rg- control. -->
+    <div id="irrconfirm"></div>
   </section>
 
 

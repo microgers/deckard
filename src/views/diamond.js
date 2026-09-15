@@ -2,9 +2,44 @@ import { $, el, esc, keepInPlace } from '../ui.js';
 import { CRIT_A, CRIT_B, aggregate, hardStops, PASS_MARK } from '../data/criteria.js';
 import { activeCompany, touchCompany } from '../store.js';
 import { openModal, closeModal } from '../modal.js';
+import { stageProgress } from '../progress.js';
 
-let onChange = () => {};
-export function initDiamond(opts = {}) { onChange = opts.onChange || onChange; }
+let nav = () => {};
+let notify = () => {};
+export function initDiamond(opts = {}) { notify = opts.onChange || notify; nav = opts.nav || nav; }
+/**
+ * Every scoring handler in here already ends in onChange(). Composing the
+ * end-of-stage bar INTO that call is how the bar hears about a score without
+ * any of those handlers having to know it exists — and it is why the Done
+ * button can appear the instant the sixteenth dot is pressed.
+ */
+function onChange() { renderDdConfirm(); notify(); }
+
+/**
+ * The foot of the Diamond: a way out that lands on the company rather than the
+ * app's front door, and — only at 16/16 — a way to declare the stage finished.
+ *
+ * This bar STORES NOTHING. The sixteen scores are the record of the stage being
+ * done; a second flag saying "the Diamond is finished" would go on claiming it
+ * after #dclear wiped the scores that earned it. So "Done" here is navigation,
+ * not state, and stageProgress() reads the scores themselves.
+ */
+export function renderDdConfirm() {
+  var w = $('#ddconfirm'); if (!w) return;
+  var p = activeCompany();
+  // No company means no hub to go back to. The panel already says so in #ddboard.
+  if (!p) { w.innerHTML = ''; return; }
+  var sp = stageProgress(p), name = esc(p.name);
+  var h = '<div class="btnrow stagebar">' +
+    '<button class="btn ghost sm" id="ddback">&larr; Back to ' + name + '</button>';
+  if (sp.diamond.done) {
+    h += '<button class="btn stagego" id="dddone">Done &mdash; back to ' + name + '</button>';
+  }
+  h += '<span class="stagecount">' + sp.diamond.n + ' of ' + sp.diamond.of + ' scored</span></div>';
+  w.innerHTML = h;
+  var back = $('#ddback'); if (back) back.onclick = function () { nav('hub'); };
+  var done = $('#dddone'); if (done) done.onclick = function () { nav('hub'); };
+}
 
 function openCrit(c){
   var p=activeCompany(); if(!p) return;
