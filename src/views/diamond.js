@@ -63,8 +63,11 @@ function openCrit(c){
       // Then the same anchor rule as the dots: this store inserts the .ca answer
       // quote into the row's first cell, ABOVE the buttons, so hold the .dots —
       // pinning the row top would hold the one thing that was not moving.
+      // Same reason as the dots: openCrit's `p` was resolved when the dialog
+      // opened, and a snapshot can land while it is on screen.
+      var c2=activeCompany(); if(!c2) return;
       keepInPlace('#ddboard [data-k="'+c.k+'"] .dots', function(){
-        p.d[c.k]=v; touchCompany(); renderDD(); scoreD();
+        c2.d[c.k]=v; touchCompany(); renderDD(); scoreD();
       });
       onChange();
       // modal.js returns focus to whatever opened the dialog, but renderDD has
@@ -110,8 +113,17 @@ function renderDD(){
           // moving and lets the dots, and every row below, slide down under the
           // finger. The anchor has to sit BELOW the content the render inserts
           // or the compensation holds the wrong thing.
+          // Resolve the company HERE, never from the closure this handler was
+          // built in. cloud.watch replaces state.companies[id] wholesale on every
+          // snapshot (store.js), so a company captured at render time can already
+          // be an orphan by the time the user presses. Writing to it stores the
+          // score on an object nothing reads: the press looks ignored, and the
+          // re-render rebinds against the fresh object so the SECOND press works.
+          // That is the "I have to click twice" report, and it only reproduces
+          // while signed in, which is why a signed-out test suite never saw it.
+          var c2=activeCompany(); if(!c2) return;
           keepInPlace('#ddboard [data-k="'+ck+'"] .dots', function(){
-            p.d[ck]=vv; touchCompany(); renderDD(); scoreD();
+            c2.d[ck]=vv; touchCompany(); renderDD(); scoreD();
           });
           onChange();
         }})(c.k,v);

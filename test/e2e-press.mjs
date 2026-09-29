@@ -185,6 +185,75 @@ for (const V of [{ w: 1360, h: 900, touch: false }, { w: 375, h: 812, touch: tru
   ok('no runtime errors', errs.length === 0, errs[0]);
   await ctx.close();
 }
+// ── a press must survive a sync snapshot ────────────────────────────────────
+// cloud.watch replaces state.companies[id] WHOLESALE on every snapshot. A handler
+// that captured the company when the board was rendered then writes the score to
+// an orphaned object: the press looks ignored, the re-render rebinds against the
+// fresh object, and the SECOND press works. That is the "I have to click twice"
+// report — and it only happens while SIGNED IN, which is why a signed-out suite
+// ran green through five releases. Simulated here by swapping the object exactly
+// as the watch does, with no re-render, so the DOM and its bound handlers are
+// untouched.
+{
+  const ctx = await b.newContext({ viewport: { width: 1360, height: 900 } });
+  const p3 = await ctx.newPage();
+  const errs3 = []; p3.on('pageerror', (e) => errs3.push(e.message));
+  await p3.goto('http://127.0.0.1:5199/', { waitUntil: 'domcontentloaded' });
+  await p3.waitForTimeout(800);
+  await p3.click('#mainnav button[data-go="dd"]'); await p3.waitForTimeout(450);
+  await p3.click('#dclear'); await p3.waitForTimeout(400);
+
+  const key = await p3.evaluate(() => document.querySelector('#ddboard .crit').dataset.k);
+  await p3.evaluate((k) => {
+    document.querySelector('#ddboard [data-k="' + k + '"]').scrollIntoView({ block: 'center' });
+  }, key);
+  await p3.waitForTimeout(250);
+
+  await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    const id = st.state.active;
+    st.state.companies[id] = JSON.parse(JSON.stringify(st.state.companies[id]));
+  });
+
+  const boxOf = (q) => p3.evaluate((sel) => {
+    const e = document.querySelector(sel);
+    const r = e.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, q);
+  const scores = () => p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    return st.state.companies[st.state.active].d;
+  });
+
+  const dot = '#ddboard [data-k="' + key + '"] .dots button:nth-child(4)';
+  const box = await boxOf(dot);
+  await p3.mouse.move(box.x, box.y); await p3.mouse.down(); await p3.mouse.up();
+  await p3.waitForTimeout(350);
+  const after = await scores();
+  ok('a score survives a sync snapshot on ONE press', after[key] === 3,
+     'stored ' + JSON.stringify(after) + ' — the press went to an orphaned company object');
+  ok('the repaint agrees with the store',
+     await p3.evaluate((q) => document.querySelector(q).getAttribute('aria-pressed') === 'true', dot));
+
+  // Renaming holds the company across an open dialog for the same reason.
+  await p3.click('#renproj'); await p3.waitForTimeout(300);
+  await p3.fill('#renval', 'Renamed After Sync');
+  await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    const id = st.state.active;
+    st.state.companies[id] = JSON.parse(JSON.stringify(st.state.companies[id]));
+  });
+  await p3.click('#rensave'); await p3.waitForTimeout(400);
+  const nm = await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    return st.state.companies[st.state.active].name;
+  });
+  ok('a rename survives a snapshot landing while the dialog is open', nm === 'Renamed After Sync', 'name is ' + JSON.stringify(nm));
+
+  ok('no runtime errors in the snapshot cases', errs3.length === 0, errs3[0]);
+  await ctx.close();
+}
+
 await b.close();
 console.log(fails ? `\n${fails} FAILED` : '\nALL PRESS TESTS PASS');
 process.exit(fails ? 1 : 0);
