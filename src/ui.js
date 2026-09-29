@@ -29,6 +29,41 @@ export function md(text) {
 }
 
 /**
+ * Attributes that identify a control well enough to re-focus it. `id` and the
+ * data-* keys are what the views actually use to tell one control from its
+ * fifteen siblings; aria-label is the fallback for the ones that carry neither.
+ */
+const FOCUS_ID_ATTRS = ['id', 'data-v', 'data-q', 'data-k', 'data-conf', 'data-opt', 'data-grade', 'aria-label'];
+
+/** tagName plus whatever identifying attributes the element carries. */
+function focusSig(e) {
+  return e.tagName + '\u0001' + FOCUS_ID_ATTRS.map((k) => (e.hasAttribute(k) ? e.getAttribute(k) : '\u0000')).join('\u0001');
+}
+
+/** Chain of child indices from <body> down to `node`, or null if it isn't under <body>. */
+function focusPath(node) {
+  const path = [];
+  let n = node;
+  while (n && n !== document.body) {
+    const p = n.parentElement;
+    if (!p) return null;
+    path.unshift(Array.prototype.indexOf.call(p.children, n));
+    n = p;
+  }
+  return n === document.body ? path : null;
+}
+
+/** The element at `path`, or null if the tree no longer goes that deep. */
+function focusAt(path) {
+  let n = document.body;
+  for (let i = 0; i < path.length; i++) {
+    n = n.children[path[i]];
+    if (!n) return null;
+  }
+  return n;
+}
+
+/**
  * Re-render without yanking the page out from under the reader.
  *
  * Every one of these views recomputes a RESULT block that sits ABOVE the
@@ -41,13 +76,44 @@ export function md(text) {
  * So: measure the control before and after the render, then scroll by the
  * difference. `sel` is re-queried after the render because these views rebuild
  * their lists wholesale, which destroys the original element.
+ *
+ * That same wholesale rebuild is why focus is restored here rather than in each
+ * view. The element you pressed is destroyed by its own handler, so focus falls
+ * to <body>: the next Space does not score the next dot, it pages the document
+ * down. Keyboard and switch users therefore lose their place on every single
+ * answer. The repair belongs in this function because this is the one place
+ * that already knows a render is about to destroy live DOM — and because it
+ * must happen with preventScroll, before the measurement below, or the browser
+ * would scroll the restored control into view and undo the compensation.
+ *
+ * The rule is deliberately timid: only restore when the focused element is
+ * genuinely gone, and only onto an element at the same position in the tree
+ * carrying the same identity. Anything else, leave focus where the browser put
+ * it — a wrong guess moves a keyboard user somewhere they never asked to be.
  */
 export function keepInPlace(sel, render) {
   const find = () => (typeof sel === 'function' ? sel() : document.querySelector(sel));
+
+  // Capture before the render, while the focused element still exists.
+  const act = document.activeElement;
+  const keep = (act && act !== document.body && act !== document.documentElement)
+    ? { node: act, path: focusPath(act), sig: focusSig(act) }
+    : null;
+  const restoreFocus = () => {
+    // Still connected means nothing destroyed it — and re-focusing a live
+    // <input type=number> mid-edit would disturb its caret and selection, so
+    // the Model must fall out here as a no-op.
+    if (!keep || !keep.path || keep.node.isConnected) return;
+    const next = focusAt(keep.path);
+    if (!next || focusSig(next) !== keep.sig) return;
+    next.focus({ preventScroll: true });
+  };
+
   const a = find();
-  if (!a) { render(); return; }
+  if (!a) { render(); restoreFocus(); return; }
   const before = a.getBoundingClientRect().top;
   render();
+  restoreFocus();
   const b = find();
   if (!b) return;
   const delta = b.getBoundingClientRect().top - before;

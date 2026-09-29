@@ -212,7 +212,27 @@ function drawItem(item) {
   c.innerHTML = conf + '<div class="quizq">' + md(item.q) + '</div>' + body +
     (session.phase === 'ask' ? '' : feedbackBlock(item));
 
-  $$('[data-conf]', c).forEach((b) => (b.onclick = () => { session.confidence = b.dataset.conf; drawItem(item); }));
+  // Saying how sure you are redraws the whole card, which destroys the chip you
+  // just pressed and drops focus on <body> — so the next Space pages the
+  // document down instead of acting. learn.js does not route through
+  // keepInPlace(), so the restore that lives there does not reach this; put it
+  // back by identity, on the chip that replaced the one you pressed.
+  // Positionally nothing moves (the answers below hold at 0.0px), so this is
+  // focus only and preventScroll keeps it that way.
+  $$('[data-conf]', c).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.conf;
+    session.confidence = k; drawItem(item);
+    // Cloze is the exception. The redraw above ends by focusing #clozein, which
+    // is where a learner who is about to type the answer needs to be; pulling
+    // focus back to the chip would swallow every keystroke until they clicked
+    // the field again. So on a cloze item the redraw's own choice stands.
+    if (item.format === 'cloze') return;
+    const again = $('#qcard [data-conf="' + k + '"]');
+    if (again) again.focus({ preventScroll: true });
+  }));
+  // Deliberately NOT done after answer() or grade(): those replace the card or
+  // advance to a different item on purpose, and restoring focus by position
+  // there would leave a live Space sitting on a control the learner never chose.
   $$('[data-opt]', c).forEach((b) => (b.onclick = () => answer(item, Number(b.dataset.opt))));
   if ($('#submitcloze')) {
     const go = () => answer(item, $('#clozein').value.trim());
