@@ -250,6 +250,38 @@ for (const V of [{ w: 1360, h: 900, touch: false }, { w: 375, h: 812, touch: tru
   });
   ok('a rename survives a snapshot landing while the dialog is open', nm === 'Renamed After Sync', 'name is ' + JSON.stringify(nm));
 
+  // Resolving "whichever company is active" at press time is the wrong repair for
+  // the staleness above: if the active company changed since the render — a remote
+  // delete, or dedupeIdentical() reassigning on a snapshot — the press would score
+  // an unrelated company. Losing a score is bad; writing it onto someone else's
+  // scorecard is worse. So the handlers resolve by the id the board was rendered
+  // for, and a press whose company has gone must do nothing at all.
+  await p3.click('#newproj'); await p3.waitForTimeout(280);
+  await p3.fill('#newval', 'Doomed Co');
+  await p3.press('#newval', 'Enter'); await p3.waitForTimeout(550);
+  await p3.click('#mainnav button[data-go="dd"]'); await p3.waitForTimeout(450);
+  const dk = await p3.evaluate(() => document.querySelector('#ddboard .crit').dataset.k);
+  await p3.evaluate((k) => document.querySelector('#ddboard [data-k="' + k + '"]').scrollIntoView({ block: 'center' }), dk);
+  await p3.waitForTimeout(220);
+  const seedBefore = await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    return JSON.stringify(st.state.companies['seed-cascade'].d);
+  });
+  await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    delete st.state.companies[st.state.active];
+    st.state.active = 'seed-cascade';
+  });
+  const dbox = await boxOf('#ddboard [data-k="' + dk + '"] .dots button:nth-child(4)');
+  await p3.mouse.move(dbox.x, dbox.y); await p3.mouse.down(); await p3.mouse.up();
+  await p3.waitForTimeout(350);
+  const seedAfter = await p3.evaluate(async () => {
+    const st = await import('/src/store.js');
+    return JSON.stringify(st.state.companies['seed-cascade'].d);
+  });
+  ok('a press whose company vanished does not score a different company',
+     seedBefore === seedAfter, 'seed-cascade changed: ' + seedBefore + ' -> ' + seedAfter);
+
   ok('no runtime errors in the snapshot cases', errs3.length === 0, errs3[0]);
   await ctx.close();
 }
