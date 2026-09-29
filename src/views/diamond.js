@@ -54,10 +54,28 @@ function openCrit(c){
     b.setAttribute("aria-checked", sel===v?"true":"false");
     b.innerHTML='<span class="on">'+v+'</span><span class="ot">'+esc(txt)+'</span><span class="ck">&#10003;</span>';
     b.onclick=function(){
-      keepInPlace('#ddboard [data-k="'+c.k+'"]', function(){
+      // Close FIRST. closeModal ends in window.scrollTo(0, <offset captured at
+      // open>) to put back what locking <html> dropped, so any compensation
+      // applied before it is thrown away. Anchoring has to be the last thing
+      // that touches the scroll position, which means the unlock has to happen
+      // before anything measures.
+      closeModal();
+      // Then the same anchor rule as the dots: this store inserts the .ca answer
+      // quote into the row's first cell, ABOVE the buttons, so hold the .dots —
+      // pinning the row top would hold the one thing that was not moving.
+      keepInPlace('#ddboard [data-k="'+c.k+'"] .dots', function(){
         p.d[c.k]=v; touchCompany(); renderDD(); scoreD();
       });
-      onChange(); closeModal();
+      onChange();
+      // modal.js returns focus to whatever opened the dialog, but renderDD has
+      // just destroyed that "what these mean" button, so its restore finds
+      // nothing and the user is stranded on <body>. Queued in a frame of its own
+      // so it lands AFTER modal.js's restore frame, and aimed at the freshly
+      // rendered equivalent of the trigger.
+      requestAnimationFrame(function(){
+        var t=$('#ddboard [data-k="'+c.k+'"] button.tiny');
+        if(t) t.focus({preventScroll:true});
+      });
     };
     L.appendChild(b);
   });
@@ -86,7 +104,13 @@ function renderDD(){
         b.setAttribute("aria-pressed", sel===v?"true":"false");
         b.setAttribute("aria-label",c.n+" — "+v+" of 5 — "+c.a[v]); b.title=c.a[v];
         b.onclick=(function(ck,vv){return function(){
-          keepInPlace('#ddboard [data-k="'+ck+'"]', function(){
+          // Anchor on the DOTS, not on the row. Scoring inserts the .ca answer
+          // quote into the row's first cell — ~24px of new content ABOVE these
+          // buttons — so pinning the row top holds the one thing that was not
+          // moving and lets the dots, and every row below, slide down under the
+          // finger. The anchor has to sit BELOW the content the render inserts
+          // or the compensation holds the wrong thing.
+          keepInPlace('#ddboard [data-k="'+ck+'"] .dots', function(){
             p.d[ck]=vv; touchCompany(); renderDD(); scoreD();
           });
           onChange();

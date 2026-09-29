@@ -45,9 +45,12 @@ await p.click('#mainnav button[data-go="dd"]'); await p.waitForTimeout(300);
 await p.click('#dclear'); await p.waitForTimeout(300);
 await p.evaluate(()=>document.querySelector('#ddboard [data-k="legal"]').scrollIntoView({block:'center'}));
 await p.waitForTimeout(250);
-let d0 = await top('#ddboard [data-k="legal"]');
+// Measured on the DOTS, not the row: scoring inserts the answer quote ABOVE
+// the buttons, so the row top is precisely the thing that does NOT move while
+// the control under the cursor is thrown down the page.
+let d0 = await top('#ddboard [data-k="legal"] .dots');
 await p.click('#ddboard [data-k="legal"] .dots button:nth-child(5)'); await p.waitForTimeout(300);
-let d1 = await top('#ddboard [data-k="legal"]');
+let d1 = await top('#ddboard [data-k="legal"] .dots');
 ok('scoring a criterion keeps that criterion under the cursor', Math.abs(d1-d0)<=4, `moved ${d1-d0}px`);
 
 await p.click('#dfill'); await p.waitForTimeout(400);
