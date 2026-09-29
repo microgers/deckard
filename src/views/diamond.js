@@ -1,6 +1,6 @@
 import { $, el, esc, keepInPlace } from '../ui.js';
 import { CRIT_A, CRIT_B, aggregate, hardStops, PASS_MARK } from '../data/criteria.js';
-import { activeCompany, touchCompany } from '../store.js';
+import { state, activeCompany, touchCompany } from '../store.js';
 import { openModal, closeModal } from '../modal.js';
 import { stageProgress } from '../progress.js';
 
@@ -43,6 +43,12 @@ export function renderDdConfirm() {
 
 function openCrit(c){
   var p=activeCompany(); if(!p) return;
+  // Bind to the company this dialog was OPENED for. Resolving 'whichever company
+  // is active' at press time would score a different company if the active one
+  // changed meanwhile — ensureCompany() reassigns state.active when a company
+  // disappears, and dedupeIdentical() runs on every snapshot and can do the same.
+  // Losing a score is bad; writing it onto someone else's scorecard is worse.
+  var cid=p.id;
   var sel=p.d[c.k];
   var h='<p style="color:var(--tx2);font-size:14.5px;margin-bottom:12px">'+esc(c.d)+'</p>'+
     '<p style="margin-bottom:14px"><span class="pill">weight '+c.w.toFixed(1)+'&times;</span>'+
@@ -63,8 +69,11 @@ function openCrit(c){
       // Then the same anchor rule as the dots: this store inserts the .ca answer
       // quote into the row's first cell, ABOVE the buttons, so hold the .dots —
       // pinning the row top would hold the one thing that was not moving.
+      // Same reason as the dots: openCrit's `p` was resolved when the dialog
+      // opened, and a snapshot can land while it is on screen.
+      var c2=state.companies[cid]; if(!c2) return;
       keepInPlace('#ddboard [data-k="'+c.k+'"] .dots', function(){
-        p.d[c.k]=v; touchCompany(); renderDD(); scoreD();
+        c2.d[c.k]=v; touchCompany(cid); renderDD(); scoreD();
       });
       onChange();
       // modal.js returns focus to whatever opened the dialog, but renderDD has
@@ -83,6 +92,9 @@ function openCrit(c){
 function renderDD(){
   var w=$("#ddboard"); w.innerHTML="";
   var p=activeCompany();
+  // The id the board is being rendered for; every handler below resolves through
+  // it rather than through whatever is active when the press lands.
+  var cid=p&&p.id;
   if(!p){ w.innerHTML='<div class="note"><b>No company selected.</b> Add one from the Saved companies list, or load the example scores below to see a finished scorecard.</div>'; return; }
   var agg = (l) => aggregate(l, p.d);
   [["Diamond I — The Business","Durability of the asset, independent of price",CRIT_A,"var(--brand)"],
@@ -110,8 +122,17 @@ function renderDD(){
           // moving and lets the dots, and every row below, slide down under the
           // finger. The anchor has to sit BELOW the content the render inserts
           // or the compensation holds the wrong thing.
+          // Resolve the company HERE, never from the closure this handler was
+          // built in. cloud.watch replaces state.companies[id] wholesale on every
+          // snapshot (store.js), so a company captured at render time can already
+          // be an orphan by the time the user presses. Writing to it stores the
+          // score on an object nothing reads: the press looks ignored, and the
+          // re-render rebinds against the fresh object so the SECOND press works.
+          // That is the "I have to click twice" report, and it only reproduces
+          // while signed in, which is why a signed-out test suite never saw it.
+          var c2=state.companies[cid]; if(!c2) return;
           keepInPlace('#ddboard [data-k="'+ck+'"] .dots', function(){
-            p.d[ck]=vv; touchCompany(); renderDD(); scoreD();
+            c2.d[ck]=vv; touchCompany(cid); renderDD(); scoreD();
           });
           onChange();
         }})(c.k,v);

@@ -137,7 +137,16 @@ function promptRename() {
     '<input class="txt" id="renval" value="' + esc(p.name) + '" maxlength="60">',
     '<button class="btn ghost sm" data-close>Cancel</button><button class="btn sm" id="rensave">Save</button>');
   const f = $('#renval'); f.focus(); f.select();
-  const go = () => { p.name = (f.value || '').trim().slice(0, 60) || 'Untitled target'; touchCompany(); onChange(); closeModal(); };
+  // Hold the ID, not the object. cloud.watch replaces state.companies[id]
+  // wholesale on every snapshot, and one can land while this dialog is open —
+  // writing the new name onto the company captured when it opened would store it
+  // on an orphan nothing reads, and the rename would silently not happen.
+  const id = p.id;
+  const go = () => {
+    const c = state.companies[id]; if (!c) { closeModal(); return; }
+    c.name = (f.value || '').trim().slice(0, 60) || 'Untitled target';
+    touchCompany(id); onChange(); closeModal();
+  };
   $('#rensave').onclick = go;
   f.onkeydown = (e) => {
     if (e.key !== 'Enter') return;
